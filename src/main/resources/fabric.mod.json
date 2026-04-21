@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "saomoddinglib",
+  "version": "${version}",
+  "name": "SAOModdingLib",
+  "description": "A fabric modding lib for all SAOMinecraft Mods",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/saomoddinglib/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "fr.perrier.saomoddinglib.client.SAOModdingLibDataGenerator"
+    ],
+    "client": [
+      "fr.perrier.saomoddinglib.client.SAOModdingLibClient"
+    ],
+    "main": [
+      "fr.perrier.saomoddinglib.SAOModdingLib"
+    ]
+  },
+  "mixins": [
+    "saomoddinglib.mixins.json",
+    {
+      "config": "saomoddinglib.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
