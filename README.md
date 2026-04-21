@@ -1,0 +1,22 @@
+# SAO Modding Lib
+
+## Description
+SAO Modding Lib is a modding library for Minecraft designed to facilitate the development of mods using Fabric.
+
+## Information
+- **Version** : alpha-1.0.0
+- **Minecraft** : 1.21.4
+- **Loader** : Fabric 0.17.2
+- **Java** : 21
+
+## Next Steps
+- [ ] Add animation support for UIs
+- [ ] Add video components for UIs
+- [ ] Add progress bars for UIs
+- [ ] Add sliders for UIs
+- [ ] Add player render for UIs
+- [ ] Add channel communication to plugins
+
+## Author
+- [Perrier](https://github.com/PerrierBouteille)
+
