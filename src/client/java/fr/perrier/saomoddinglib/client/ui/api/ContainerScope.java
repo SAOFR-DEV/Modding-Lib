@@ -7,6 +7,7 @@ import fr.perrier.saomoddinglib.client.ui.styling.Style;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Builder scope passed to lambda-based container factories
@@ -31,6 +32,14 @@ public class ContainerScope {
 
     public void Text(String content, Style style) {
         children.add(Components.Text(content, style));
+    }
+
+    public void Text(Supplier<String> contentSupplier) {
+        children.add(Components.Text(contentSupplier));
+    }
+
+    public void Text(Supplier<String> contentSupplier, Style style) {
+        children.add(Components.Text(contentSupplier, style));
     }
 
     public void Button(String label) {

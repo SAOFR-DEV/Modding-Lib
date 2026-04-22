@@ -7,6 +7,7 @@ import fr.perrier.saomoddinglib.client.ui.styling.Style;
 import fr.perrier.saomoddinglib.client.ui.screen.UIScreen;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Composition API for building UI component trees.
@@ -46,6 +47,22 @@ public class Components {
      */
     public static UIComponent Text(String content, Style style) {
         return new TextComponent(content, style);
+    }
+
+    /**
+     * Create a reactive Text component whose content is resolved from the
+     * supplier on every frame. Pass a {@code State<String>} (or
+     * {@code myState.map(...)}) to bind the text to observable state.
+     */
+    public static UIComponent Text(Supplier<String> contentSupplier) {
+        return Text(contentSupplier, Style.DEFAULT);
+    }
+
+    /**
+     * Create a reactive Text component with custom style.
+     */
+    public static UIComponent Text(Supplier<String> contentSupplier, Style style) {
+        return new TextComponent(contentSupplier, style);
     }
     
     // ===== Button Component =====

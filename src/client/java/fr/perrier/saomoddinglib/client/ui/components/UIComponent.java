@@ -1,11 +1,16 @@
 package fr.perrier.saomoddinglib.client.ui.components;
 
 import net.minecraft.client.gui.DrawContext;
+import fr.perrier.saomoddinglib.client.ui.state.Subscription;
 import fr.perrier.saomoddinglib.client.ui.styling.Style;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Base class for all UI components.
- * Manages lifecycle: measure -> layout -> render
+ * Manages lifecycle: measure -> layout -> render, plus attach/detach
+ * for subscription cleanup.
  */
 public abstract class UIComponent {
     protected Style style;
@@ -15,6 +20,9 @@ public abstract class UIComponent {
     protected int height;
     protected boolean needsMeasure = true;
     protected boolean needsLayout = true;
+
+    private final List<Subscription> subscriptions = new ArrayList<>();
+    private boolean attached = false;
 
     public UIComponent(Style style) {
         this.style = style != null ? style : Style.DEFAULT;
@@ -84,6 +92,43 @@ public abstract class UIComponent {
 
     public boolean isPointInside(double px, double py) {
         return px >= x && px <= x + width && py >= y && py <= y + height;
+    }
+
+    /**
+     * Register a subscription whose lifecycle is tied to this component.
+     * The subscription is released automatically on {@link #onDetach()}.
+     */
+    public void track(Subscription subscription) {
+        if (subscription != null) {
+            subscriptions.add(subscription);
+        }
+    }
+
+    /**
+     * Called when the component becomes live (screen opens). Idempotent.
+     * Subclasses that manage children must propagate this call.
+     */
+    public void onAttach() {
+        if (attached) return;
+        attached = true;
+    }
+
+    /**
+     * Called when the component is removed from the live tree (screen closes).
+     * Disposes all tracked subscriptions. Idempotent. Subclasses that manage
+     * children must propagate this call.
+     */
+    public void onDetach() {
+        if (!attached) return;
+        attached = false;
+        for (Subscription sub : subscriptions) {
+            sub.unsubscribe();
+        }
+        subscriptions.clear();
+    }
+
+    public boolean isAttached() {
+        return attached;
     }
 
     /**

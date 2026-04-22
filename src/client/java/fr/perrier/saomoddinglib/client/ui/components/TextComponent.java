@@ -6,22 +6,37 @@ import net.minecraft.client.MinecraftClient;
 import fr.perrier.saomoddinglib.client.ui.styling.Style;
 import fr.perrier.saomoddinglib.client.ui.styling.Size;
 
+import java.util.function.Supplier;
+
 /**
  * Text component for displaying text content.
+ *
+ * <p>The content is resolved lazily through a {@link Supplier} on every frame,
+ * so passing a {@code State<String>} (or any supplier) makes the text update
+ * automatically as the source changes.</p>
  */
 public class TextComponent extends UIComponent {
-    private final String content;
+    private final Supplier<String> contentSupplier;
 
     public TextComponent(String content, Style style) {
+        this(() -> content != null ? content : "", style);
+    }
+
+    public TextComponent(Supplier<String> contentSupplier, Style style) {
         super(style);
-        this.content = content != null ? content : "";
+        this.contentSupplier = contentSupplier != null ? contentSupplier : () -> "";
+    }
+
+    private String resolve() {
+        String s = contentSupplier.get();
+        return s != null ? s : "";
     }
 
     @Override
     public MeasureResult measure(int maxWidth, int maxHeight) {
         TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
 
-        int textWidth = textRenderer.getWidth(content);
+        int textWidth = textRenderer.getWidth(resolve());
         int textHeight = 10; // Approximate height
 
         int totalWidth = textWidth + style.getPadding().getHorizontal();
@@ -60,7 +75,7 @@ public class TextComponent extends UIComponent {
             // Full opacity support would require matrix stack manipulations
         }
 
-        String displayText = content;
+        String displayText = resolve();
         if (style.isBold()) {
             // Minecraft doesn't have native bold text, so we'll render twice slightly offset
             drawContext.drawText(textRenderer, "§l" + displayText, textX, textY, style.getTextColor(), true);

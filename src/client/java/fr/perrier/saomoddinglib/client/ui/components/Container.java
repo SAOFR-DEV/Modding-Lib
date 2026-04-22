@@ -26,12 +26,36 @@ public class Container extends UIComponent {
     
     public void addChild(UIComponent child) {
         this.children.add(child);
+        if (isAttached()) {
+            child.onAttach();
+        }
     }
-    
+
     public void addChildren(UIComponent... childArray) {
         for (UIComponent child : childArray) {
             this.children.add(child);
+            if (isAttached()) {
+                child.onAttach();
+            }
         }
+    }
+
+    @Override
+    public void onAttach() {
+        if (isAttached()) return;
+        super.onAttach();
+        for (UIComponent child : children) {
+            child.onAttach();
+        }
+    }
+
+    @Override
+    public void onDetach() {
+        if (!isAttached()) return;
+        for (UIComponent child : children) {
+            child.onDetach();
+        }
+        super.onDetach();
     }
     
     @Override

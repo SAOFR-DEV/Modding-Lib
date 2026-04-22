@@ -25,8 +25,16 @@ public class UIScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        // onAttach() is idempotent, so a resize-triggered re-init is safe.
+        rootComponent.onAttach();
         // Measure and layout the component tree
         UIRenderer.measureAndLayout(rootComponent, this.width, this.height);
+    }
+
+    @Override
+    public void removed() {
+        rootComponent.onDetach();
+        super.removed();
     }
     
     @Override
