@@ -15,6 +15,17 @@ SAO Modding Lib is a modding library for Minecraft designed to facilitate the de
 - [ ] Add progress bars for UIs
 - [ ] Add sliders for UIs
 - [ ] Add player render for UIs
+- [ ] Add text input for UIs
+- [ ] Add combo box for UIs
+- [ ] Add select list for UIs
+- [ ] Add color picker for UIs
+- [ ] Add toast notifications for UIs
+- [ ] Add tooltips for UIs
+- [ ] Add pagination for UIs
+- [ ] Add accordion for UIs
+- [ ] Add Skeleton support for UIs
+- [ ] Add spiner for UIs
+- [ ] Add calendar for UIs
 - [ ] Add channel communication to plugins
 
 ## Author
