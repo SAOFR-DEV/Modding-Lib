@@ -69,6 +69,25 @@ public abstract class UIComponent {
     public void onMouseMove(double x, double y) {
     }
 
+    /**
+     * Handle mouse drag event (mouse moved while a button is held).
+     * Components that captured the initial click (e.g. sliders) react here
+     * regardless of current cursor position.
+     * @return true if event was consumed
+     */
+    public boolean onMouseDrag(double x, double y, double dragX, double dragY, int button) {
+        return false;
+    }
+
+    /**
+     * Handle mouse release event. Components that track a capture state
+     * (e.g. sliders in drag mode) should clear it here.
+     * @return true if event was consumed
+     */
+    public boolean onMouseRelease(double x, double y, int button) {
+        return false;
+    }
+
     // Getters
     public Style getStyle() {
         return style;

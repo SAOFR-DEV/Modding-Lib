@@ -2,6 +2,7 @@ package fr.perrier.saomoddinglib.client.ui.api;
 
 import net.minecraft.util.Identifier;
 import fr.perrier.saomoddinglib.client.ui.components.UIComponent;
+import fr.perrier.saomoddinglib.client.ui.state.State;
 import fr.perrier.saomoddinglib.client.ui.styling.Style;
 
 import java.util.ArrayList;
@@ -92,5 +93,75 @@ public class ContainerScope {
 
     public void HScroll(Style style, Consumer<ContainerScope> content) {
         children.add(Components.HScroll(style, Components.Row(content)));
+    }
+
+    // --- Slider Int ---
+    public void SliderInt(State<Integer> state, int min, int max) {
+        children.add(Components.SliderInt(state, min, max));
+    }
+    public void SliderInt(State<Integer> state, int min, int max, int step) {
+        children.add(Components.SliderInt(state, min, max, step));
+    }
+    public void SliderInt(State<Integer> state, int min, int max, int step, Style barStyle, Style thumbStyle) {
+        children.add(Components.SliderInt(state, min, max, step, barStyle, thumbStyle));
+    }
+    public void SliderInt(State<Integer> state, int min, int max, int step, Style barStyle, Style thumbStyle, Style trackStyle) {
+        children.add(Components.SliderInt(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+
+    // --- Slider Double ---
+    public void SliderDouble(State<Double> state, double min, double max) {
+        children.add(Components.SliderDouble(state, min, max));
+    }
+    public void SliderDouble(State<Double> state, double min, double max, double step) {
+        children.add(Components.SliderDouble(state, min, max, step));
+    }
+    public void SliderDouble(State<Double> state, double min, double max, double step, Style barStyle, Style thumbStyle) {
+        children.add(Components.SliderDouble(state, min, max, step, barStyle, thumbStyle));
+    }
+    public void SliderDouble(State<Double> state, double min, double max, double step, Style barStyle, Style thumbStyle, Style trackStyle) {
+        children.add(Components.SliderDouble(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+
+    // --- Slider Float ---
+    public void SliderFloat(State<Float> state, float min, float max) {
+        children.add(Components.SliderFloat(state, min, max));
+    }
+    public void SliderFloat(State<Float> state, float min, float max, float step) {
+        children.add(Components.SliderFloat(state, min, max, step));
+    }
+    public void SliderFloat(State<Float> state, float min, float max, float step, Style barStyle, Style thumbStyle) {
+        children.add(Components.SliderFloat(state, min, max, step, barStyle, thumbStyle));
+    }
+    public void SliderFloat(State<Float> state, float min, float max, float step, Style barStyle, Style thumbStyle, Style trackStyle) {
+        children.add(Components.SliderFloat(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+
+    // --- Slider Long ---
+    public void SliderLong(State<Long> state, long min, long max) {
+        children.add(Components.SliderLong(state, min, max));
+    }
+    public void SliderLong(State<Long> state, long min, long max, long step) {
+        children.add(Components.SliderLong(state, min, max, step));
+    }
+    public void SliderLong(State<Long> state, long min, long max, long step, Style barStyle, Style thumbStyle) {
+        children.add(Components.SliderLong(state, min, max, step, barStyle, thumbStyle));
+    }
+    public void SliderLong(State<Long> state, long min, long max, long step, Style barStyle, Style thumbStyle, Style trackStyle) {
+        children.add(Components.SliderLong(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+
+    // --- Slider Short ---
+    public void SliderShort(State<Short> state, short min, short max) {
+        children.add(Components.SliderShort(state, min, max));
+    }
+    public void SliderShort(State<Short> state, short min, short max, short step) {
+        children.add(Components.SliderShort(state, min, max, step));
+    }
+    public void SliderShort(State<Short> state, short min, short max, short step, Style barStyle, Style thumbStyle) {
+        children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle));
+    }
+    public void SliderShort(State<Short> state, short min, short max, short step, Style barStyle, Style thumbStyle, Style trackStyle) {
+        children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle));
     }
 }

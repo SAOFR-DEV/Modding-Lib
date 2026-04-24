@@ -58,7 +58,12 @@ public class UIScreen extends Screen {
     
     @Override
     public boolean mouseDragged(double x, double y, int button, double dragX, double dragY) {
-        return rootComponent.onMouseClick(x, y, button);
+        return rootComponent.onMouseDrag(x, y, dragX, dragY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double x, double y, int button) {
+        return rootComponent.onMouseRelease(x, y, button);
     }
     
     @Override

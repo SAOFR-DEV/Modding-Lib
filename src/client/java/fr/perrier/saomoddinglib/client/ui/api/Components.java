@@ -3,6 +3,7 @@ package fr.perrier.saomoddinglib.client.ui.api;
 import net.minecraft.util.Identifier;
 import fr.perrier.saomoddinglib.client.ui.components.*;
 import fr.perrier.saomoddinglib.client.ui.layout.LayoutType;
+import fr.perrier.saomoddinglib.client.ui.state.State;
 import fr.perrier.saomoddinglib.client.ui.styling.Style;
 import fr.perrier.saomoddinglib.client.ui.screen.UIScreen;
 
@@ -214,6 +215,134 @@ public class Components {
         return scroll;
     }
     
+    // ===== Slider Components =====
+    //
+    // All sliders bind bidirectionally to a State<N>: dragging writes to the
+    // state, external mutation of the state moves the thumb on next frame.
+    //
+    // Four overloads per numeric type:
+    //   (state, min, max)
+    //   (state, min, max, step)
+    //   (state, min, max, step, barStyle, thumbStyle)                -> track derived from bar
+    //   (state, min, max, step, barStyle, thumbStyle, trackStyle)    -> explicit track
+    //
+    // Default step is 1 for Int/Long/Short, 0 (continuous) for Double/Float.
+
+    // --- Int ---
+
+    public static UIComponent SliderInt(State<Integer> state, int min, int max) {
+        return SliderInt(state, min, max, 1);
+    }
+
+    public static UIComponent SliderInt(State<Integer> state, int min, int max, int step) {
+        return SliderInt(state, min, max, step, null, null);
+    }
+
+    public static UIComponent SliderInt(State<Integer> state, int min, int max, int step,
+                                        Style barStyle, Style thumbStyle) {
+        return SliderInt(state, min, max, step, barStyle, thumbStyle, null);
+    }
+
+    public static UIComponent SliderInt(State<Integer> state, int min, int max, int step,
+                                        Style barStyle, Style thumbStyle, Style trackStyle) {
+        return new SliderComponent(barStyle, thumbStyle, trackStyle,
+                min, max, step,
+                () -> (double) state.get(),
+                v -> state.set((int) Math.round(v)));
+    }
+
+    // --- Double ---
+
+    public static UIComponent SliderDouble(State<Double> state, double min, double max) {
+        return SliderDouble(state, min, max, 0.0);
+    }
+
+    public static UIComponent SliderDouble(State<Double> state, double min, double max, double step) {
+        return SliderDouble(state, min, max, step, null, null);
+    }
+
+    public static UIComponent SliderDouble(State<Double> state, double min, double max, double step,
+                                           Style barStyle, Style thumbStyle) {
+        return SliderDouble(state, min, max, step, barStyle, thumbStyle, null);
+    }
+
+    public static UIComponent SliderDouble(State<Double> state, double min, double max, double step,
+                                           Style barStyle, Style thumbStyle, Style trackStyle) {
+        return new SliderComponent(barStyle, thumbStyle, trackStyle,
+                min, max, step,
+                state::get,
+                state::set);
+    }
+
+    // --- Float ---
+
+    public static UIComponent SliderFloat(State<Float> state, float min, float max) {
+        return SliderFloat(state, min, max, 0f);
+    }
+
+    public static UIComponent SliderFloat(State<Float> state, float min, float max, float step) {
+        return SliderFloat(state, min, max, step, null, null);
+    }
+
+    public static UIComponent SliderFloat(State<Float> state, float min, float max, float step,
+                                          Style barStyle, Style thumbStyle) {
+        return SliderFloat(state, min, max, step, barStyle, thumbStyle, null);
+    }
+
+    public static UIComponent SliderFloat(State<Float> state, float min, float max, float step,
+                                          Style barStyle, Style thumbStyle, Style trackStyle) {
+        return new SliderComponent(barStyle, thumbStyle, trackStyle,
+                min, max, step,
+                () -> (double) state.get(),
+                v -> state.set((float) v));
+    }
+
+    // --- Long ---
+
+    public static UIComponent SliderLong(State<Long> state, long min, long max) {
+        return SliderLong(state, min, max, 1L);
+    }
+
+    public static UIComponent SliderLong(State<Long> state, long min, long max, long step) {
+        return SliderLong(state, min, max, step, null, null);
+    }
+
+    public static UIComponent SliderLong(State<Long> state, long min, long max, long step,
+                                         Style barStyle, Style thumbStyle) {
+        return SliderLong(state, min, max, step, barStyle, thumbStyle, null);
+    }
+
+    public static UIComponent SliderLong(State<Long> state, long min, long max, long step,
+                                         Style barStyle, Style thumbStyle, Style trackStyle) {
+        return new SliderComponent(barStyle, thumbStyle, trackStyle,
+                (double) min, (double) max, (double) step,
+                () -> (double) state.get(),
+                v -> state.set(Math.round(v)));
+    }
+
+    // --- Short ---
+
+    public static UIComponent SliderShort(State<Short> state, short min, short max) {
+        return SliderShort(state, min, max, (short) 1);
+    }
+
+    public static UIComponent SliderShort(State<Short> state, short min, short max, short step) {
+        return SliderShort(state, min, max, step, null, null);
+    }
+
+    public static UIComponent SliderShort(State<Short> state, short min, short max, short step,
+                                          Style barStyle, Style thumbStyle) {
+        return SliderShort(state, min, max, step, barStyle, thumbStyle, null);
+    }
+
+    public static UIComponent SliderShort(State<Short> state, short min, short max, short step,
+                                          Style barStyle, Style thumbStyle, Style trackStyle) {
+        return new SliderComponent(barStyle, thumbStyle, trackStyle,
+                min, max, step,
+                () -> (double) state.get(),
+                v -> state.set((short) Math.round(v)));
+    }
+
     // ===== Screen Creation =====
     
     /**

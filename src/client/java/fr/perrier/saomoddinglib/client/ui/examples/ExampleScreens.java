@@ -54,6 +54,45 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating slider components bound to reactive state.
+     * Dragging the slider updates the {@link State}; the Text above it reads
+     * from a {@code map(...)} of the same state and refreshes each frame.
+     */
+    public static UIScreen createSliderScreen() {
+        State<Integer> volume = State.of(50);
+        State<Double> pitch = State.of(1.0);
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Slider Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                // Int slider with default styles (track derived from fill)
+                Components.Text(
+                        volume.map(v -> "Volume: " + v),
+                        fontSize(12).textColor(0xFF_AA_AA_AA).margin(12, 0, 4, 0).build()
+                ),
+                Components.SliderInt(volume, 0, 100, 1),
+
+                // Double slider, step 0.1, custom 3-style (explicit track color)
+                Components.Text(
+                        pitch.map(v -> String.format("Pitch: %.1f", v)),
+                        fontSize(12).textColor(0xFF_AA_AA_AA).margin(16, 0, 4, 0).build()
+                ),
+                Components.SliderDouble(pitch, 0.5, 2.0, 0.1,
+                        backgroundColor(0xFF_FF_88_55).width(240).height(6).build(),
+                        backgroundColor(WHITE).width(10).height(20).build(),
+                        backgroundColor(0xFF_33_33_33).build()
+                )
+        );
+
+        return Components.Screen(content, "Slider Demo");
+    }
+
+    /**
      * Create a scrollable list example.
      */
     public static UIScreen createScrollableListScreen() {

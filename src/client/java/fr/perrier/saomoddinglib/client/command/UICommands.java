@@ -30,7 +30,6 @@ public class UICommands {
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             registerDemoMenuCommand(dispatcher);
-            registerScrollableListCommand(dispatcher);
         });
     }
 
@@ -42,17 +41,7 @@ public class UICommands {
         dispatcher.register(
                 literal("demomenu")
                         .executes(context -> {
-                            openNextTick(ExampleScreens::createDemoScreen);
-                            return 1;
-                        })
-        );
-    }
-
-    private static void registerScrollableListCommand(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-        dispatcher.register(
-                literal("scrollmenu")
-                        .executes(context -> {
-                            openNextTick(ExampleScreens::createScrollableListScreen);
+                            openNextTick(ExampleScreens::createSliderScreen);
                             return 1;
                         })
         );

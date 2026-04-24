@@ -225,6 +225,30 @@ public class Container extends UIComponent {
             child.onMouseMove(mx, my);
         }
     }
+
+    @Override
+    public boolean onMouseDrag(double mx, double my, double dragX, double dragY, int button) {
+        // No position filter: a captured child (e.g. slider) may be dragged
+        // past its own bounds. Consumers gate on their own capture flag.
+        boolean consumed = false;
+        for (UIComponent child : children) {
+            if (child.onMouseDrag(mx, my, dragX, dragY, button)) {
+                consumed = true;
+            }
+        }
+        return consumed;
+    }
+
+    @Override
+    public boolean onMouseRelease(double mx, double my, int button) {
+        boolean consumed = false;
+        for (UIComponent child : children) {
+            if (child.onMouseRelease(mx, my, button)) {
+                consumed = true;
+            }
+        }
+        return consumed;
+    }
     
     /**
      * Apply style constraint to measured value
