@@ -16,9 +16,9 @@ SAO Modding Lib is a modding library for Minecraft designed to facilitate the de
 - [x] Add sliders for UIs
   > Hors scope noté pour plus tard
   >  - [ ] Slider vertical (ajout d'un flag d'orientation).
-  >  - [ ]Support clavier (← → Home End) — nécessite un système de focus.
-  >  - [ ]Hover visuel sur le thumb.
-  >  - [ ]Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
+  >  - [ ] Support clavier (← → Home End) — nécessite un système de focus.
+  >  - [ ] Hover visuel sur le thumb.
+  >  - [ ] Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
 - [ ] Add player render for UIs
 - [ ] Add text input for UIs
 - [ ] Add combo box for UIs
