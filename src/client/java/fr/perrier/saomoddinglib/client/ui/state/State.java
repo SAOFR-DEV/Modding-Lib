@@ -2,8 +2,13 @@ package fr.perrier.saomoddinglib.client.ui.state;
 
 import net.minecraft.client.MinecraftClient;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -34,7 +39,11 @@ import java.util.function.Supplier;
  */
 public class State<T> implements Supplier<T> {
 
+    private static final Map<String, WeakReference<State<?>>> NAMED_STATES =
+            Collections.synchronizedMap(new LinkedHashMap<>());
+
     private T value;
+    private String name;
     private final List<Consumer<T>> listeners = new ArrayList<>();
 
     protected State(T initial) {
@@ -42,11 +51,58 @@ public class State<T> implements Supplier<T> {
     }
 
     /**
-     * Create a new state holding the given initial value.
+     * Create a new anonymous state.
      */
     public static <T> State<T> of(T initial) {
         return new State<>(initial);
     }
+
+    /**
+     * Create a new named state. Named states are registered in a global
+     * weak-valued registry and surfaced by the debug overlay under the given
+     * {@code name}. Registering the same name twice replaces the previous
+     * entry. The reference in the registry is weak, so states that go out of
+     * scope are cleaned up automatically.
+     */
+    public static <T> State<T> of(T initial, String name) {
+        State<T> state = new State<>(initial);
+        if (name != null && !name.isEmpty()) {
+            state.name = name;
+            NAMED_STATES.put(name, new WeakReference<>(state));
+        }
+        return state;
+    }
+
+    /**
+     * @return the registered name of this state, or {@code null} if anonymous.
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Snapshot the currently-live named states. Cleans up stale entries whose
+     * target has been garbage-collected. Returned in registration order.
+     */
+    public static List<NamedStateSnapshot> registeredStates() {
+        List<NamedStateSnapshot> out = new ArrayList<>();
+        synchronized (NAMED_STATES) {
+            Iterator<Map.Entry<String, WeakReference<State<?>>>> it = NAMED_STATES.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, WeakReference<State<?>>> entry = it.next();
+                State<?> live = entry.getValue().get();
+                if (live == null) {
+                    it.remove();
+                } else {
+                    out.add(new NamedStateSnapshot(entry.getKey(), live.get()));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Lightweight snapshot row for the debug overlay. */
+    public record NamedStateSnapshot(String name, Object value) {}
 
     /**
      * @return the current value.

@@ -21,7 +21,7 @@ public class ExampleScreens {
      * increments the state.
      */
     public static UIScreen createDemoScreen() {
-        State<Integer> counter = State.of(0);
+        State<Integer> counter = State.of(0, "demo.counter");
 
         UIComponent content = Components.Column(
                 padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
@@ -59,7 +59,7 @@ public class ExampleScreens {
      * Text nodes above show how {@link State#map} chains live content.
      */
     public static UIScreen createTextFieldScreen() {
-        State<String> query = State.of("");
+        State<String> query = State.of("", "demo.textfield.query");
 
         UIComponent content = Components.Column(
                 padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
@@ -99,8 +99,8 @@ public class ExampleScreens {
      * from a {@code map(...)} of the same state and refreshes each frame.
      */
     public static UIScreen createSliderScreen() {
-        State<Integer> volume = State.of(50);
-        State<Double> pitch = State.of(1.0);
+        State<Integer> volume = State.of(50, "demo.slider.volume");
+        State<Double> pitch = State.of(1.0, "demo.slider.pitch");
 
         UIComponent content = Components.Column(
                 padding(20).backgroundColor(0xFF_1A_1A_1A).build(),

@@ -41,7 +41,7 @@ public class UICommands {
         dispatcher.register(
                 literal("demomenu")
                         .executes(context -> {
-                            openNextTick(ExampleScreens::createTextFieldScreen);
+                            openNextTick(ExampleScreens::createSliderScreen);
                             return 1;
                         })
         );
