@@ -106,5 +106,9 @@ public class Styles {
     public static Style.Builder bold() {
         return Style.bold();
     }
+
+    public static Style.Builder placeholderColor(int color) {
+        return Style.placeholderColor(color);
+    }
 }
 

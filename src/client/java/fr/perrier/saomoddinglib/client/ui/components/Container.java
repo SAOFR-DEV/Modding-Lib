@@ -1,6 +1,7 @@
 package fr.perrier.saomoddinglib.client.ui.components;
 
 import net.minecraft.client.gui.DrawContext;
+import fr.perrier.saomoddinglib.client.ui.context.UIContext;
 import fr.perrier.saomoddinglib.client.ui.styling.Style;
 import fr.perrier.saomoddinglib.client.ui.styling.Size;
 import fr.perrier.saomoddinglib.client.ui.layout.LayoutType;
@@ -27,7 +28,7 @@ public class Container extends UIComponent {
     public void addChild(UIComponent child) {
         this.children.add(child);
         if (isAttached()) {
-            child.onAttach();
+            child.onAttach(this.context);
         }
     }
 
@@ -35,17 +36,17 @@ public class Container extends UIComponent {
         for (UIComponent child : childArray) {
             this.children.add(child);
             if (isAttached()) {
-                child.onAttach();
+                child.onAttach(this.context);
             }
         }
     }
 
     @Override
-    public void onAttach() {
+    public void onAttach(UIContext ctx) {
         if (isAttached()) return;
-        super.onAttach();
+        super.onAttach(ctx);
         for (UIComponent child : children) {
-            child.onAttach();
+            child.onAttach(ctx);
         }
     }
 

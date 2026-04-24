@@ -4,6 +4,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import fr.perrier.saomoddinglib.client.ui.components.UIComponent;
+import fr.perrier.saomoddinglib.client.ui.context.UIContext;
 import fr.perrier.saomoddinglib.client.ui.rendering.UIRenderer;
 
 /**
@@ -12,21 +13,22 @@ import fr.perrier.saomoddinglib.client.ui.rendering.UIRenderer;
  */
 public class UIScreen extends Screen {
     private final UIComponent rootComponent;
-    
+    private final UIContext uiContext = new UIContext();
+
     public UIScreen(UIComponent rootComponent, String title) {
         super(Text.literal(title));
         this.rootComponent = rootComponent;
     }
-    
+
     public UIScreen(UIComponent rootComponent) {
         this(rootComponent, "");
     }
-    
+
     @Override
     protected void init() {
         super.init();
-        // onAttach() is idempotent, so a resize-triggered re-init is safe.
-        rootComponent.onAttach();
+        // onAttach is idempotent, so a resize-triggered re-init is safe.
+        rootComponent.onAttach(uiContext);
         // Measure and layout the component tree
         UIRenderer.measureAndLayout(rootComponent, this.width, this.height);
     }
@@ -53,7 +55,15 @@ public class UIScreen extends Screen {
     
     @Override
     public boolean mouseClicked(double x, double y, int button) {
-        return rootComponent.onMouseClick(x, y, button);
+        UIComponent preFocus = uiContext.getFocused();
+        boolean consumed = rootComponent.onMouseClick(x, y, button);
+        // Blur on click outside: if focus didn't change during dispatch and the
+        // click wasn't inside the focused component, drop focus.
+        UIComponent postFocus = uiContext.getFocused();
+        if (preFocus != null && postFocus == preFocus && !preFocus.isPointInside(x, y)) {
+            uiContext.clearFocus();
+        }
+        return consumed;
     }
     
     @Override
@@ -73,11 +83,24 @@ public class UIScreen extends Screen {
     
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256) { // ESC key
+        UIComponent focused = uiContext.getFocused();
+        if (focused != null && focused.onKeyPress(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        if (keyCode == 256) { // ESC — fallback close only when no focus consumed it
             this.close();
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        UIComponent focused = uiContext.getFocused();
+        if (focused != null && focused.onCharTyped(chr, modifiers)) {
+            return true;
+        }
+        return super.charTyped(chr, modifiers);
     }
     
     public UIComponent getRootComponent() {

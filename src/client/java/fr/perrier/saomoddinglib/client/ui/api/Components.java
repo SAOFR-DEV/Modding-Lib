@@ -215,6 +215,24 @@ public class Components {
         return scroll;
     }
     
+    // ===== Text Field =====
+
+    /**
+     * Create a single-line editable text field bound bidirectionally to a
+     * {@code State<String>}.
+     */
+    public static UIComponent TextField(State<String> state) {
+        return TextField(state, "", Style.DEFAULT);
+    }
+
+    public static UIComponent TextField(State<String> state, String placeholder) {
+        return TextField(state, placeholder, Style.DEFAULT);
+    }
+
+    public static UIComponent TextField(State<String> state, String placeholder, Style style) {
+        return new TextFieldComponent(state, placeholder, style);
+    }
+
     // ===== Slider Components =====
     //
     // All sliders bind bidirectionally to a State<N>: dragging writes to the

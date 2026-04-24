@@ -1,6 +1,7 @@
 package fr.perrier.saomoddinglib.client.ui.components;
 
 import net.minecraft.client.gui.DrawContext;
+import fr.perrier.saomoddinglib.client.ui.context.UIContext;
 import fr.perrier.saomoddinglib.client.ui.state.Subscription;
 import fr.perrier.saomoddinglib.client.ui.styling.Style;
 
@@ -23,6 +24,7 @@ public abstract class UIComponent {
 
     private final List<Subscription> subscriptions = new ArrayList<>();
     private boolean attached = false;
+    protected UIContext context;
 
     public UIComponent(Style style) {
         this.style = style != null ? style : Style.DEFAULT;
@@ -88,6 +90,53 @@ public abstract class UIComponent {
         return false;
     }
 
+    /**
+     * Handle a raw key press (arrows, enter, backspace, function keys, etc.).
+     * Only the focused component receives this event.
+     * @return true if event was consumed
+     */
+    public boolean onKeyPress(int keyCode, int scanCode, int modifiers) {
+        return false;
+    }
+
+    /**
+     * Handle a typed character (respects IME, dead keys, shift state).
+     * Only the focused component receives this event.
+     * @return true if event was consumed
+     */
+    public boolean onCharTyped(char chr, int modifiers) {
+        return false;
+    }
+
+    /**
+     * Called when this component gains keyboard focus.
+     */
+    public void onFocus() {
+    }
+
+    /**
+     * Called when this component loses keyboard focus.
+     */
+    public void onBlur() {
+    }
+
+    /**
+     * @return whether this component currently holds focus in its UIContext.
+     */
+    public boolean isFocused() {
+        return context != null && context.getFocused() == this;
+    }
+
+    /**
+     * Ask the enclosing UIContext to transfer focus to this component.
+     * No-op if the component isn't attached to a context yet.
+     */
+    public void requestFocus() {
+        if (context != null) {
+            context.requestFocus(this);
+        }
+    }
+
     // Getters
     public Style getStyle() {
         return style;
@@ -125,25 +174,32 @@ public abstract class UIComponent {
 
     /**
      * Called when the component becomes live (screen opens). Idempotent.
-     * Subclasses that manage children must propagate this call.
+     * Receives the screen-scoped {@link UIContext}. Subclasses that manage
+     * children must propagate this call.
      */
-    public void onAttach() {
+    public void onAttach(UIContext ctx) {
         if (attached) return;
         attached = true;
+        this.context = ctx;
     }
 
     /**
      * Called when the component is removed from the live tree (screen closes).
-     * Disposes all tracked subscriptions. Idempotent. Subclasses that manage
-     * children must propagate this call.
+     * Disposes all tracked subscriptions, clears focus if held, and drops the
+     * context reference. Idempotent. Subclasses that manage children must
+     * propagate this call.
      */
     public void onDetach() {
         if (!attached) return;
         attached = false;
+        if (context != null && context.getFocused() == this) {
+            context.clearFocus();
+        }
         for (Subscription sub : subscriptions) {
             sub.unsubscribe();
         }
         subscriptions.clear();
+        context = null;
     }
 
     public boolean isAttached() {

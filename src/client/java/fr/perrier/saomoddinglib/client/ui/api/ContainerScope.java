@@ -95,6 +95,17 @@ public class ContainerScope {
         children.add(Components.HScroll(style, Components.Row(content)));
     }
 
+    // --- Text Field ---
+    public void TextField(State<String> state) {
+        children.add(Components.TextField(state));
+    }
+    public void TextField(State<String> state, String placeholder) {
+        children.add(Components.TextField(state, placeholder));
+    }
+    public void TextField(State<String> state, String placeholder, Style style) {
+        children.add(Components.TextField(state, placeholder, style));
+    }
+
     // --- Slider Int ---
     public void SliderInt(State<Integer> state, int min, int max) {
         children.add(Components.SliderInt(state, min, max));

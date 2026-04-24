@@ -22,6 +22,7 @@ public class Style {
     private final ClickHandler clickHandler;
     private final float opacity;
     private final boolean bold;
+    private final int placeholderColor;
 
     private Style(Builder builder) {
         this.width = builder.width;
@@ -39,6 +40,7 @@ public class Style {
         this.clickHandler = builder.clickHandler;
         this.opacity = builder.opacity;
         this.bold = builder.bold;
+        this.placeholderColor = builder.placeholderColor;
     }
 
     // Getters
@@ -102,6 +104,15 @@ public class Style {
         return bold;
     }
 
+    /**
+     * @return the explicit placeholder color, or {@code 0} when unset — in
+     * which case consumers should derive from {@link #getTextColor()} at
+     * reduced alpha.
+     */
+    public int getPlaceholderColor() {
+        return placeholderColor;
+    }
+
     // Builder pattern
     public static Builder builder() {
         return new Builder();
@@ -124,6 +135,7 @@ public class Style {
         builder.clickHandler = this.clickHandler;
         builder.opacity = this.opacity;
         builder.bold = this.bold;
+        builder.placeholderColor = this.placeholderColor;
         return builder;
     }
 
@@ -196,6 +208,10 @@ public class Style {
         return builder().bold();
     }
 
+    public static Builder placeholderColor(int color) {
+        return builder().placeholderColor(color);
+    }
+
     // Builder class
     public static class Builder {
         private int width = Size.WRAP_CONTENT;
@@ -213,6 +229,7 @@ public class Style {
         private ClickHandler clickHandler = null;
         private float opacity = 1.0f;
         private boolean bold = false;
+        private int placeholderColor = 0; // 0 ⇒ derive from textColor
 
         public Builder width(int width) {
             this.width = width;
@@ -298,6 +315,11 @@ public class Style {
 
         public Builder bold() {
             this.bold = true;
+            return this;
+        }
+
+        public Builder placeholderColor(int color) {
+            this.placeholderColor = color;
             return this;
         }
 

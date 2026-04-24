@@ -54,6 +54,46 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating a TextField bound bidirectionally to a
+     * {@code State<String>}. Typing in the field updates the state; derived
+     * Text nodes above show how {@link State#map} chains live content.
+     */
+    public static UIScreen createTextFieldScreen() {
+        State<String> query = State.of("");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "TextField Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        query.map(q -> q.isEmpty() ? "Start typing below..." : "You typed: " + q),
+                        fontSize(12).textColor(0xFF_AA_AA_AA).margin(12, 0, 4, 0).build()
+                ),
+
+                Components.Text(
+                        query.map(q -> q.length() + " character" + (q.length() == 1 ? "" : "s")),
+                        fontSize(10).textColor(0xFF_77_77_77).margin(0, 0, 8, 0).build()
+                ),
+
+                Components.TextField(
+                        query,
+                        "Search...",
+                        backgroundColor(0xFF_2A_2A_2A)
+                                .textColor(WHITE)
+                                .width(240).height(22)
+                                .padding(4, 6)
+                                .build()
+                )
+        );
+
+        return Components.Screen(content, "TextField Demo");
+    }
+
+    /**
      * Create a screen demonstrating slider components bound to reactive state.
      * Dragging the slider updates the {@link State}; the Text above it reads
      * from a {@code map(...)} of the same state and refreshes each frame.
