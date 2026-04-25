@@ -133,6 +133,52 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating progress bars driven by an external slider.
+     * Both bars read the same {@link State}; the second one shows a custom
+     * label format and color scheme.
+     */
+    public static UIScreen createProgressBarScreen() {
+        State<Double> progress = State.of(0.4, "demo.progress.value");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Progress Bar Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Drag the slider to fill the bars",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(4, 0, 8, 0).build()
+                ),
+
+                Components.SliderDouble(progress, 0.0, 1.0, 0.0),
+
+                // Default label "Progression XX%"
+                Components.Text(
+                        "Default label:",
+                        fontSize(10).textColor(0xFF_AA_AA_AA).margin(16, 0, 4, 0).build()
+                ),
+                Components.ProgressBar(progress, 0.0, 1.0),
+
+                // Custom label + custom styles
+                Components.Text(
+                        "Custom label & colors:",
+                        fontSize(10).textColor(0xFF_AA_AA_AA).margin(12, 0, 4, 0).build()
+                ),
+                Components.ProgressBar(
+                        progress, 0.0, 1.0,
+                        v -> String.format("%.0f / 100 XP", v * 100),
+                        backgroundColor(0xFF_22_22_22).textColor(WHITE).width(240).height(18).build(),
+                        backgroundColor(0xFF_88_DD_55).build()
+                )
+        );
+
+        return Components.Screen(content, "Progress Bar Demo");
+    }
+
+    /**
      * Create a scrollable list example.
      */
     public static UIScreen createScrollableListScreen() {

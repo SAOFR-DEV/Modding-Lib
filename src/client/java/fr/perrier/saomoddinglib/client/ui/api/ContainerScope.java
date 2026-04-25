@@ -8,6 +8,7 @@ import fr.perrier.saomoddinglib.client.ui.styling.Style;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.DoubleFunction;
 import java.util.function.Supplier;
 
 /**
@@ -104,6 +105,22 @@ public class ContainerScope {
     }
     public void TextField(State<String> state, String placeholder, Style style) {
         children.add(Components.TextField(state, placeholder, style));
+    }
+
+    // --- Progress Bar ---
+    public void ProgressBar(State<Double> state, double min, double max) {
+        children.add(Components.ProgressBar(state, min, max));
+    }
+    public void ProgressBar(State<Double> state, double min, double max, DoubleFunction<String> labelFormat) {
+        children.add(Components.ProgressBar(state, min, max, labelFormat));
+    }
+    public void ProgressBar(State<Double> state, double min, double max, Style barStyle, Style fillStyle) {
+        children.add(Components.ProgressBar(state, min, max, barStyle, fillStyle));
+    }
+    public void ProgressBar(State<Double> state, double min, double max,
+                            DoubleFunction<String> labelFormat,
+                            Style barStyle, Style fillStyle) {
+        children.add(Components.ProgressBar(state, min, max, labelFormat, barStyle, fillStyle));
     }
 
     // --- Slider Int ---

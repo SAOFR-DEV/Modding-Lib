@@ -8,6 +8,7 @@ import fr.perrier.saomoddinglib.client.ui.styling.Style;
 import fr.perrier.saomoddinglib.client.ui.screen.UIScreen;
 
 import java.util.function.Consumer;
+import java.util.function.DoubleFunction;
 import java.util.function.Supplier;
 
 /**
@@ -231,6 +232,36 @@ public class Components {
 
     public static UIComponent TextField(State<String> state, String placeholder, Style style) {
         return new TextFieldComponent(state, placeholder, style);
+    }
+
+    // ===== Progress Bar =====
+    //
+    // Read-only bar bound to a State<Double>. For other numeric types, derive
+    // via state.map(v -> v.doubleValue()).
+    //
+    // The label format is a DoubleFunction<String> applied to the current
+    // value each frame. Pass null to disable the label. The default formatter
+    // produces "Progression XX%" rounded against the [min, max] range.
+
+    public static UIComponent ProgressBar(State<Double> state, double min, double max) {
+        return ProgressBar(state, min, max, ProgressBarComponent.defaultLabelFormat(min, max), null, null);
+    }
+
+    public static UIComponent ProgressBar(State<Double> state, double min, double max,
+                                          DoubleFunction<String> labelFormat) {
+        return ProgressBar(state, min, max, labelFormat, null, null);
+    }
+
+    public static UIComponent ProgressBar(State<Double> state, double min, double max,
+                                          Style barStyle, Style fillStyle) {
+        return ProgressBar(state, min, max,
+                ProgressBarComponent.defaultLabelFormat(min, max), barStyle, fillStyle);
+    }
+
+    public static UIComponent ProgressBar(State<Double> state, double min, double max,
+                                          DoubleFunction<String> labelFormat,
+                                          Style barStyle, Style fillStyle) {
+        return new ProgressBarComponent(barStyle, fillStyle, min, max, state::get, labelFormat);
     }
 
     // ===== Slider Components =====
