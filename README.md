@@ -1,7 +1,7 @@
-# SAO Modding Lib
+# Modding Lib
 
 ## Description
-SAO Modding Lib is a modding library for Minecraft designed to facilitate the development of mods using Fabric.
+Modding Lib is a modding library for Minecraft designed to facilitate the development of mods using Fabric.
 
 ## Information
 - **Version** : alpha-1.0.6
@@ -21,22 +21,22 @@ Add the following to your `build.gradle`:
 
 ```gradle
 repositories {
-    maven { url 'https://maven.example.com/SAOModdingLib' }
+    maven { url 'https://maven.example.com/ModdingLib' }
 }
 
 dependencies {
-    modImplementation 'com.example:saomoddinglib:alpha-1.0.6'
+    modImplementation 'org.triggersstudio:moddinglib:alpha-1.0.6'
 }
 ```
 
 ## Getting Started
 
 ### Basic Usage
-To use SAO Modding Lib in your mod, import the library and start utilizing its UI components:
+To use Modding Lib in your mod, import the library and start utilizing its UI components:
 
 ```java
-import com.example.saomoddinglib.ui.SliderWidget;
-import com.example.saomoddinglib.ui.TextInputWidget;
+import org.triggersstudio.moddinglib.ui.SliderWidget;
+import org.triggersstudio.moddinglib.ui.TextInputWidget;
 ```
 
 Check the documentation and examples in the source code for more details on available components.
@@ -50,8 +50,8 @@ Check the documentation and examples in the source code for more details on avai
 ### Build Steps
 ```bash
 # Clone the repository
-git clone https://github.com/SAOFR-DEV/SAOModdingLib.git
-cd SAOModdingLib
+git clone https://github.com/SAOFR-DEV/Modding-Lib.git
+cd ModdingLib
 
 # Build the project
 ./gradlew build
@@ -97,7 +97,7 @@ This project is licensed under the MIT License. See the [LICENSE.md](LICENSE.md)
 
 ## Support & Issues
 If you encounter any issues or have questions:
-- [Open an issue](https://github.com/SAOFR-DEV/SAOModdingLib/issues)
+- [Open an issue](https://github.com/SAOFR-DEV/Modding-Lib/issues)
 - Check existing issues and discussions
 - Review the documentation in the source code
 

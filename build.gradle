@@ -14,7 +14,7 @@ loom {
     splitEnvironmentSourceSets()
 
     mods {
-        "saomoddinglib" {
+        "moddinglib" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
         }

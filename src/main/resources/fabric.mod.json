@@ -1,29 +1,29 @@
 {
   "schemaVersion": 1,
-  "id": "saomoddinglib",
+  "id": "moddinglib",
   "version": "${version}",
-  "name": "SAOModdingLib",
-  "description": "A fabric modding lib for all SAOMinecraft Mods",
+  "name": "ModdingLib",
+  "description": "A fabric modding lib for all SAOMinecraft Mods & other project of TriggersStudio",
   "authors": [],
   "contact": {},
-  "license": "All-Rights-Reserved",
-  "icon": "assets/saomoddinglib/icon.png",
+  "license": "MIT",
+  "icon": "assets/moddinglib/icon.png",
   "environment": "client",
   "entrypoints": {
     "fabric-datagen": [
-      "fr.perrier.saomoddinglib.client.SAOModdingLibDataGenerator"
+      "org.triggersstudio.moddinglib.client.ModdingLibDataGenerator"
     ],
     "client": [
-      "fr.perrier.saomoddinglib.client.SAOModdingLibClient"
+      "org.triggersstudio.moddinglib.client.ModdingLibClient"
     ],
     "main": [
-      "fr.perrier.saomoddinglib.SAOModdingLib"
+      "org.triggersstudio.moddinglib.ModdingLib"
     ]
   },
   "mixins": [
-    "saomoddinglib.mixins.json",
+    "moddinglib.mixins.json",
     {
-      "config": "saomoddinglib.client.mixins.json",
+      "config": "moddinglib.client.mixins.json",
       "environment": "client"
     }
   ],
