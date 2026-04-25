@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -105,6 +106,29 @@ public class ContainerScope {
     }
     public void TextField(State<String> state, String placeholder, Style style) {
         children.add(Components.TextField(state, placeholder, style));
+    }
+
+    // --- Dynamic ---
+    public <T> void Dynamic(State<T> state, Function<T, UIComponent> builder) {
+        children.add(Components.Dynamic(state, builder));
+    }
+    public <T> void Dynamic(State<T> state, Supplier<UIComponent> builder) {
+        children.add(Components.Dynamic(state, builder));
+    }
+
+    // --- Pagination ---
+    public void Pagination(State<Integer> state, int totalPages) {
+        children.add(Components.Pagination(state, totalPages));
+    }
+    public void Pagination(State<Integer> state, int totalPages, int siblings) {
+        children.add(Components.Pagination(state, totalPages, siblings));
+    }
+    public void Pagination(State<Integer> state, int totalPages, Style buttonStyle, Style activeStyle) {
+        children.add(Components.Pagination(state, totalPages, buttonStyle, activeStyle));
+    }
+    public void Pagination(State<Integer> state, int totalPages, int siblings,
+                           Style buttonStyle, Style activeStyle) {
+        children.add(Components.Pagination(state, totalPages, siblings, buttonStyle, activeStyle));
     }
 
     // --- Progress Bar ---

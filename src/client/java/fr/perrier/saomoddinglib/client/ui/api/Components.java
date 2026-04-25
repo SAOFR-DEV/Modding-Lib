@@ -9,6 +9,7 @@ import fr.perrier.saomoddinglib.client.ui.screen.UIScreen;
 
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -232,6 +233,46 @@ public class Components {
 
     public static UIComponent TextField(State<String> state, String placeholder, Style style) {
         return new TextFieldComponent(state, placeholder, style);
+    }
+
+    // ===== Dynamic =====
+    //
+    // Container whose single child is derived from a State<T>. The builder
+    // is re-invoked whenever the state changes, and the resulting component
+    // replaces the previous child. Use this to plug arbitrary component
+    // trees into reactive state — paginated views, tabs, conditional UI.
+
+    public static <T> UIComponent Dynamic(State<T> state, Function<T, UIComponent> builder) {
+        return new DynamicComponent<>(state, builder);
+    }
+
+    public static <T> UIComponent Dynamic(State<T> state, Supplier<UIComponent> builder) {
+        return new DynamicComponent<>(state, value -> builder.get());
+    }
+
+    // ===== Pagination =====
+    //
+    // Page navigator bound to a State<Integer> (1-indexed). The default
+    // siblings count is 2 (window of 5 around the current page). Pass a
+    // larger value to expose more neighboring pages, or 0 for a minimal
+    // first / current / last layout.
+
+    public static UIComponent Pagination(State<Integer> state, int totalPages) {
+        return Pagination(state, totalPages, 2, null, null);
+    }
+
+    public static UIComponent Pagination(State<Integer> state, int totalPages, int siblings) {
+        return Pagination(state, totalPages, siblings, null, null);
+    }
+
+    public static UIComponent Pagination(State<Integer> state, int totalPages,
+                                         Style buttonStyle, Style activeStyle) {
+        return Pagination(state, totalPages, 2, buttonStyle, activeStyle);
+    }
+
+    public static UIComponent Pagination(State<Integer> state, int totalPages, int siblings,
+                                         Style buttonStyle, Style activeStyle) {
+        return new PaginationComponent(state, totalPages, siblings, buttonStyle, activeStyle);
     }
 
     // ===== Progress Bar =====

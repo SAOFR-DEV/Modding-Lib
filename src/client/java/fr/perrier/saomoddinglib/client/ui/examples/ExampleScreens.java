@@ -133,6 +133,71 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating a 3×3 paginated gallery. Items are
+     * colored buttons; the {@link Components#Dynamic} container rebuilds the
+     * grid whenever the page state changes, while the {@link Components#Pagination}
+     * navigator writes to that same state. Single source of truth.
+     */
+    public static UIScreen createGalleryScreen() {
+        final int cols = 3, rows = 3;
+        final int pageSize = cols * rows;
+        final int totalItems = 36;
+        final int totalPages = (totalItems + pageSize - 1) / pageSize;
+        final int[] palette = {
+                0xFF_55_88_FF, 0xFF_88_DD_55, 0xFF_FF_88_55,
+                0xFF_DD_55_88, 0xFF_55_DD_DD, 0xFF_DD_DD_55
+        };
+
+        State<Integer> page = State.of(1, "demo.gallery.page");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Gallery 3×3",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        page.map(p -> "Page " + p + " of " + totalPages),
+                        fontSize(11).textColor(0xFF_AA_AA_AA).margin(4, 0, 12, 0).build()
+                ),
+
+                // Reactive grid: rebuilds whenever `page` changes
+                Components.Dynamic(page, p -> {
+                    int start = (p - 1) * pageSize;
+                    int end = Math.min(totalItems, start + pageSize);
+
+                    return Components.Column(col -> {
+                        for (int r = 0; r < rows; r++) {
+                            final int rowStart = start + r * cols;
+                            if (rowStart >= end) break;
+                            col.Row(row -> {
+                                for (int c = 0; c < cols; c++) {
+                                    int idx = rowStart + c;
+                                    if (idx >= end) break;
+                                    int color = palette[idx % palette.length];
+                                    row.Button(
+                                            "#" + (idx + 1),
+                                            backgroundColor(color)
+                                                    .textColor(WHITE)
+                                                    .width(60).height(60)
+                                                    .margin(3)
+                                                    .build()
+                                    );
+                                }
+                            });
+                        }
+                    });
+                }),
+
+                Components.Pagination(page, totalPages)
+        );
+
+        return Components.Screen(content, "Gallery Demo");
+    }
+
+    /**
      * Create a screen demonstrating progress bars driven by an external slider.
      * Both bars read the same {@link State}; the second one shows a custom
      * label format and color scheme.
