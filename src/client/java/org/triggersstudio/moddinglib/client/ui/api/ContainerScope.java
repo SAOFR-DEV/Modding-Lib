@@ -1,12 +1,14 @@
 package org.triggersstudio.moddinglib.client.ui.api;
 
 import net.minecraft.util.Identifier;
+import org.triggersstudio.moddinglib.client.ui.components.AccordionSection;
 import org.triggersstudio.moddinglib.client.ui.components.UIComponent;
 import org.triggersstudio.moddinglib.client.ui.state.State;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
 import java.util.function.Function;
@@ -215,5 +217,33 @@ public class ContainerScope {
     }
     public void SliderShort(State<Short> state, short min, short max, short step, Style barStyle, Style thumbStyle, Style trackStyle) {
         children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+
+    // --- Accordion (multi-open) ---
+    public void Accordion(AccordionSection... sections) {
+        children.add(Components.Accordion(sections));
+    }
+    public void Accordion(Style headerStyle, AccordionSection... sections) {
+        children.add(Components.Accordion(headerStyle, sections));
+    }
+    public void Accordion(State<Set<Integer>> openSet, AccordionSection... sections) {
+        children.add(Components.Accordion(openSet, sections));
+    }
+    public void Accordion(State<Set<Integer>> openSet, Style headerStyle, AccordionSection... sections) {
+        children.add(Components.Accordion(openSet, headerStyle, sections));
+    }
+
+    // --- Accordion (single-open) ---
+    public void AccordionSingle(AccordionSection... sections) {
+        children.add(Components.AccordionSingle(sections));
+    }
+    public void AccordionSingle(Style headerStyle, AccordionSection... sections) {
+        children.add(Components.AccordionSingle(headerStyle, sections));
+    }
+    public void AccordionSingle(State<Integer> openIndex, AccordionSection... sections) {
+        children.add(Components.AccordionSingle(openIndex, sections));
+    }
+    public void AccordionSingle(State<Integer> openIndex, Style headerStyle, AccordionSection... sections) {
+        children.add(Components.AccordionSingle(openIndex, headerStyle, sections));
     }
 }

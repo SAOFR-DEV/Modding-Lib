@@ -244,6 +244,101 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating both accordion modes side by side.
+     * Multi-open lets several sections coexist; single-open behaves like
+     * vertical tabs. Both share section bodies that read/write reactive State.
+     */
+    public static UIScreen createAccordionScreen() {
+        State<Integer> volume = State.of(50, "demo.accordion.volume");
+        State<String> name = State.of("", "demo.accordion.name");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Accordion Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Multi-open (default — first section starts open):",
+                        fontSize(10).textColor(0xFF_AA_AA_AA).margin(12, 0, 6, 0).build()
+                ),
+
+                Components.Accordion(
+                        Components.AccordionSection("Settings",
+                                Components.Column(
+                                        padding(12).backgroundColor(0xFF_22_22_22).build(),
+                                        Components.Text(
+                                                volume.map(v -> "Volume: " + v),
+                                                fontSize(11).textColor(0xFF_DD_DD_DD).margin(0, 0, 6, 0).build()
+                                        ),
+                                        Components.SliderInt(volume, 0, 100, 1)
+                                ),
+                                true /* defaultOpen */
+                        ),
+                        Components.AccordionSection("Profile",
+                                Components.Column(
+                                        padding(12).backgroundColor(0xFF_22_22_22).build(),
+                                        Components.TextField(
+                                                name, "Your name…",
+                                                backgroundColor(0xFF_2A_2A_2A)
+                                                        .textColor(WHITE)
+                                                        .width(220).height(22)
+                                                        .padding(4, 6)
+                                                        .build()
+                                        ),
+                                        Components.Text(
+                                                name.map(n -> n.isEmpty() ? "(no name)" : "Hello, " + n + "!"),
+                                                fontSize(11).textColor(0xFF_AA_AA_AA).margin(6, 0, 0, 0).build()
+                                        )
+                                )
+                        ),
+                        Components.AccordionSection("About",
+                                Components.Column(
+                                        padding(12).backgroundColor(0xFF_22_22_22).build(),
+                                        Components.Text("ModdingLib — UI demo",
+                                                fontSize(11).textColor(0xFF_DD_DD_DD).build()),
+                                        Components.Text("MIT licensed",
+                                                fontSize(10).textColor(0xFF_77_77_77).margin(4, 0, 0, 0).build())
+                                )
+                        )
+                ),
+
+                Components.Text(
+                        "Single-open (only one section at a time):",
+                        fontSize(10).textColor(0xFF_AA_AA_AA).margin(16, 0, 6, 0).build()
+                ),
+
+                Components.AccordionSingle(
+                        Components.AccordionSection("Tab A",
+                                Components.Column(
+                                        padding(12).backgroundColor(0xFF_22_22_22).build(),
+                                        Components.Text("Content of A",
+                                                fontSize(11).textColor(0xFF_DD_DD_DD).build())
+                                )
+                        ),
+                        Components.AccordionSection("Tab B",
+                                Components.Column(
+                                        padding(12).backgroundColor(0xFF_22_22_22).build(),
+                                        Components.Text("Content of B",
+                                                fontSize(11).textColor(0xFF_DD_DD_DD).build())
+                                )
+                        ),
+                        Components.AccordionSection("Tab C",
+                                Components.Column(
+                                        padding(12).backgroundColor(0xFF_22_22_22).build(),
+                                        Components.Text("Content of C",
+                                                fontSize(11).textColor(0xFF_DD_DD_DD).build())
+                                )
+                        )
+                )
+        );
+
+        return Components.Screen(content, "Accordion Demo");
+    }
+
+    /**
      * Create a scrollable list example.
      */
     public static UIScreen createScrollableListScreen() {

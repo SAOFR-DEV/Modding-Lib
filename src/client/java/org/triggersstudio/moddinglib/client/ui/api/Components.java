@@ -7,6 +7,8 @@ import org.triggersstudio.moddinglib.client.ui.state.State;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.screen.UIScreen;
 
+import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
 import java.util.function.Function;
@@ -431,6 +433,74 @@ public class Components {
                 min, max, step,
                 () -> (double) state.get(),
                 v -> state.set((short) Math.round(v)));
+    }
+
+    // ===== Accordion =====
+    //
+    // Vertical stack of collapsible sections. Multi-open by default; use
+    // AccordionSingle for single-open behavior. Bind to your own State<...>
+    // for persistence/programmatic control, or pass none to use internal
+    // state (with per-section defaultOpen flags honored).
+
+    public static AccordionSection AccordionSection(String title, UIComponent body) {
+        return new AccordionSection(title, body, false);
+    }
+
+    public static AccordionSection AccordionSection(String title, UIComponent body, boolean defaultOpen) {
+        return new AccordionSection(title, body, defaultOpen);
+    }
+
+    // --- Multi-open ---
+
+    public static UIComponent Accordion(AccordionSection... sections) {
+        return Accordion((Style) null, sections);
+    }
+
+    public static UIComponent Accordion(Style headerStyle, AccordionSection... sections) {
+        List<AccordionSection> list = List.of(sections);
+        State<Set<Integer>> openSet = State.of(AccordionComponent.initialOpenSet(list, false));
+        return new AccordionComponent(openSet, false, list, headerStyle);
+    }
+
+    public static UIComponent Accordion(State<Set<Integer>> openSet, AccordionSection... sections) {
+        return Accordion(openSet, null, sections);
+    }
+
+    public static UIComponent Accordion(State<Set<Integer>> openSet, Style headerStyle, AccordionSection... sections) {
+        return new AccordionComponent(openSet, false, List.of(sections), headerStyle);
+    }
+
+    // --- Single-open ---
+
+    public static UIComponent AccordionSingle(AccordionSection... sections) {
+        return AccordionSingle((Style) null, sections);
+    }
+
+    public static UIComponent AccordionSingle(Style headerStyle, AccordionSection... sections) {
+        List<AccordionSection> list = List.of(sections);
+        State<Set<Integer>> openSet = State.of(AccordionComponent.initialOpenSet(list, true));
+        return new AccordionComponent(openSet, true, list, headerStyle);
+    }
+
+    public static UIComponent AccordionSingle(State<Integer> openIndex, AccordionSection... sections) {
+        return AccordionSingle(openIndex, null, sections);
+    }
+
+    public static UIComponent AccordionSingle(State<Integer> openIndex, Style headerStyle, AccordionSection... sections) {
+        Integer initial = openIndex.get();
+        Set<Integer> initialSet = (initial != null && initial >= 0) ? Set.of(initial) : Set.of();
+        State<Set<Integer>> internal = State.of(initialSet);
+        AccordionComponent comp = new AccordionComponent(internal, true, List.of(sections), headerStyle);
+        // Bridge: internal Set<Integer> ↔ external Integer.
+        // The equals-check in State.set prevents the back-and-forth from looping.
+        comp.track(internal.onChange(set -> {
+            int idx = set.isEmpty() ? -1 : set.iterator().next();
+            openIndex.set(idx);
+        }));
+        comp.track(openIndex.onChange(idx -> {
+            internal.set((idx == null || idx < 0) ? Set.of() : Set.of(idx));
+        }));
+        return comp;
     }
 
     // ===== Screen Creation =====
