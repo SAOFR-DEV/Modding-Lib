@@ -244,6 +244,67 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating SelectList — a vertically stacked list
+     * of selectable rows bound to a State. Two examples: one with the default
+     * String renderer, one with a custom renderer drawing a colored swatch.
+     */
+    public static UIScreen createSelectListScreen() {
+        // Simple list of strings
+        java.util.List<String> difficulties = java.util.List.of("Easy", "Normal", "Hard", "Extreme");
+        State<String> chosenDifficulty = State.of("Normal", "demo.selectlist.difficulty");
+
+        // Record with an accent color, showcased via a custom renderer
+        record Theme(String name, int accent) {}
+        java.util.List<Theme> themes = java.util.List.of(
+                new Theme("Cobalt", 0xFF_55_88_FF),
+                new Theme("Forest", 0xFF_88_DD_55),
+                new Theme("Sunset", 0xFF_FF_88_55),
+                new Theme("Berry", 0xFF_DD_55_88)
+        );
+        State<Theme> chosenTheme = State.of(themes.get(0), "demo.selectlist.theme");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Select List Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        chosenDifficulty.map(d -> "Difficulty: " + d),
+                        fontSize(11).textColor(0xFF_AA_AA_AA).margin(8, 0, 4, 0).build()
+                ),
+
+                // Default renderer: just the toString of each item
+                Components.SelectList(chosenDifficulty, difficulties),
+
+                Components.Text(
+                        chosenTheme.map(t -> "Theme: " + t.name()),
+                        fontSize(11).textColor(0xFF_AA_AA_AA).margin(16, 0, 4, 0).build()
+                ),
+
+                // Custom renderer: a small accent square next to the name
+                Components.SelectList(
+                        chosenTheme,
+                        themes,
+                        theme -> Components.Row(
+                                Components.Column(
+                                        backgroundColor(theme.accent())
+                                                .width(8).height(8)
+                                                .margin(0, 6, 0, 0)
+                                                .build()
+                                ),
+                                Components.Text(theme.name(),
+                                        fontSize(11).textColor(WHITE).build())
+                        )
+                )
+        );
+
+        return Components.Screen(content, "Select List Demo");
+    }
+
+    /**
      * Create a screen demonstrating both accordion modes side by side.
      * Multi-open lets several sections coexist; single-open behaves like
      * vertical tabs. Both share section bodies that read/write reactive State.

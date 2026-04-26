@@ -4,7 +4,7 @@
 Modding Lib is a modding library for Minecraft designed to facilitate the development of mods using Fabric.
 
 ## Information
-- **Version** : alpha-1.0.7
+- **Version** : alpha-1.0.8
 - **Minecraft** : 1.21.4
 - **Loader** : Fabric 0.17.2
 - **Java** : 21
@@ -79,7 +79,7 @@ The compiled JAR files will be available in the `build/libs/` directory.
   > - [ ] Add onSubmit Enter
   > - [ ] Add blink du caret
 - [ ] Add combo box for UIs
-- [ ] Add select list for UIs
+- [x] Add select list for UIs
 - [ ] Add color picker for UIs
 - [ ] Add toast notifications for UIs
 - [ ] Add tooltips for UIs

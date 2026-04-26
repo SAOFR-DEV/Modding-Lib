@@ -435,6 +435,35 @@ public class Components {
                 v -> state.set((short) Math.round(v)));
     }
 
+    // ===== Select List =====
+    //
+    // Vertical list of selectable rows bound to a State<T>. Each item is
+    // rendered by a function returning a UIComponent; the row's background
+    // and text color come from rowStyle / selectedRowStyle. Clicking a row
+    // writes that item to the state. The default renderer wraps
+    // String.valueOf(item) in a Text component.
+
+    public static <T> UIComponent SelectList(State<T> selection, List<T> items) {
+        return SelectList(selection, items, item -> Text(String.valueOf(item)), null, null);
+    }
+
+    public static <T> UIComponent SelectList(State<T> selection, List<T> items,
+                                             Function<T, UIComponent> renderer) {
+        return SelectList(selection, items, renderer, null, null);
+    }
+
+    public static <T> UIComponent SelectList(State<T> selection, List<T> items,
+                                             Style rowStyle, Style selectedRowStyle) {
+        return SelectList(selection, items, item -> Text(String.valueOf(item)),
+                rowStyle, selectedRowStyle);
+    }
+
+    public static <T> UIComponent SelectList(State<T> selection, List<T> items,
+                                             Function<T, UIComponent> renderer,
+                                             Style rowStyle, Style selectedRowStyle) {
+        return new SelectListComponent<>(selection, items, renderer, rowStyle, selectedRowStyle);
+    }
+
     // ===== Accordion =====
     //
     // Vertical stack of collapsible sections. Multi-open by default; use

@@ -219,6 +219,21 @@ public class ContainerScope {
         children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle));
     }
 
+    // --- Select List ---
+    public <T> void SelectList(State<T> selection, List<T> items) {
+        children.add(Components.SelectList(selection, items));
+    }
+    public <T> void SelectList(State<T> selection, List<T> items, Function<T, UIComponent> renderer) {
+        children.add(Components.SelectList(selection, items, renderer));
+    }
+    public <T> void SelectList(State<T> selection, List<T> items, Style rowStyle, Style selectedRowStyle) {
+        children.add(Components.SelectList(selection, items, rowStyle, selectedRowStyle));
+    }
+    public <T> void SelectList(State<T> selection, List<T> items, Function<T, UIComponent> renderer,
+                               Style rowStyle, Style selectedRowStyle) {
+        children.add(Components.SelectList(selection, items, renderer, rowStyle, selectedRowStyle));
+    }
+
     // --- Accordion (multi-open) ---
     public void Accordion(AccordionSection... sections) {
         children.add(Components.Accordion(sections));
