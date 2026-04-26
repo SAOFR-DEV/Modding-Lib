@@ -219,6 +219,15 @@ public class ContainerScope {
         children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle));
     }
 
+    // --- Calendar ---
+    public void Calendar(State<java.time.LocalDate> selected) {
+        children.add(Components.Calendar(selected));
+    }
+    public void Calendar(State<java.time.LocalDate> selected,
+                         Style headerStyle, Style dayStyle, Style selectedDayStyle) {
+        children.add(Components.Calendar(selected, headerStyle, dayStyle, selectedDayStyle));
+    }
+
     // --- Select List ---
     public <T> void SelectList(State<T> selection, List<T> items) {
         children.add(Components.SelectList(selection, items));

@@ -244,6 +244,36 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating the Calendar component bound to a
+     * {@code State<LocalDate>}. Click a day to select it; use the arrows to
+     * pan months. A reactive Text shows the chosen date.
+     */
+    public static UIScreen createCalendarScreen() {
+        State<java.time.LocalDate> chosenDate = State.of(java.time.LocalDate.now(), "demo.calendar.date");
+
+        java.time.format.DateTimeFormatter fmt =
+                java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d yyyy", java.util.Locale.ENGLISH);
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Calendar Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        chosenDate.map(d -> "Selected: " + fmt.format(d)),
+                        fontSize(11).textColor(0xFF_AA_AA_AA).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Calendar(chosenDate)
+        );
+
+        return Components.Screen(content, "Calendar Demo");
+    }
+
+    /**
      * Create a screen demonstrating SelectList — a vertically stacked list
      * of selectable rows bound to a State. Two examples: one with the default
      * String renderer, one with a custom renderer drawing a colored swatch.

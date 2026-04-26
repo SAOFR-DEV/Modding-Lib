@@ -435,6 +435,21 @@ public class Components {
                 v -> state.set((short) Math.round(v)));
     }
 
+    // ===== Calendar =====
+    //
+    // Month-view calendar bound to a State<LocalDate>. Header arrows pan the
+    // displayed month; clicking a day writes that date back to the state.
+    // Three optional style modifiers: header, day, selected day.
+
+    public static UIComponent Calendar(State<java.time.LocalDate> selected) {
+        return new CalendarComponent(selected, null, null, null);
+    }
+
+    public static UIComponent Calendar(State<java.time.LocalDate> selected,
+                                       Style headerStyle, Style dayStyle, Style selectedDayStyle) {
+        return new CalendarComponent(selected, headerStyle, dayStyle, selectedDayStyle);
+    }
+
     // ===== Select List =====
     //
     // Vertical list of selectable rows bound to a State<T>. Each item is

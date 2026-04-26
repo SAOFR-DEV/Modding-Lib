@@ -40,7 +40,7 @@ public class UICommands {
         dispatcher.register(
                 literal("demomenu")
                         .executes(context -> {
-                            openNextTick(ExampleScreens::createSelectListScreen);
+                            openNextTick(ExampleScreens::createCalendarScreen);
                             return 1;
                         })
         );
