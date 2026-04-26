@@ -1,6 +1,7 @@
 package org.triggersstudio.moddinglib.client.ui.api;
 
 import net.minecraft.util.Identifier;
+import org.triggersstudio.moddinglib.client.ui.animation.Direction;
 import org.triggersstudio.moddinglib.client.ui.components.AccordionSection;
 import org.triggersstudio.moddinglib.client.ui.components.UIComponent;
 import org.triggersstudio.moddinglib.client.ui.state.State;
@@ -217,6 +218,17 @@ public class ContainerScope {
     }
     public void SliderShort(State<Short> state, short min, short max, short step, Style barStyle, Style thumbStyle, Style trackStyle) {
         children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+
+    // --- Animation ---
+    public void FadeIn(UIComponent child, long durationMs) {
+        children.add(Components.FadeIn(child, durationMs));
+    }
+    public void FadeOut(UIComponent child, long durationMs) {
+        children.add(Components.FadeOut(child, durationMs));
+    }
+    public void SlideIn(UIComponent child, Direction from, long durationMs) {
+        children.add(Components.SlideIn(child, from, durationMs));
     }
 
     // --- Calendar ---

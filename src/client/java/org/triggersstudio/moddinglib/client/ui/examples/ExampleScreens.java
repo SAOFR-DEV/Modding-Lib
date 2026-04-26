@@ -244,6 +244,86 @@ public class ExampleScreens {
     }
 
     /**
+     * Create a screen demonstrating the animation system:
+     * <ul>
+     *   <li>Auto fade-in of the title on mount.</li>
+     *   <li>Replay-on-click via {@link org.triggersstudio.moddinglib.client.ui.components.DynamicComponent},
+     *       which rebuilds the FadeIn wrapper and restarts its tween.</li>
+     *   <li>Slide-in from the left.</li>
+     *   <li>Combined opacity + translate via the {@code Animated} builder
+     *       with a custom easing.</li>
+     * </ul>
+     */
+    public static UIScreen createAnimationScreen() {
+        State<Integer> replayTrigger = State.of(0, "demo.animation.replay");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Animation Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Click 'Replay' to restart every animation below",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Button(
+                        "Replay",
+                        backgroundColor(0xFF_2A_2A_2A)
+                                .textColor(WHITE)
+                                .height(22).width(80)
+                                .margin(0, 0, 12, 0)
+                                .onClick((mx, my, btn) -> replayTrigger.set(replayTrigger.get() + 1))
+                                .build()
+                ),
+
+                // Everything animated lives inside a Dynamic bound to replayTrigger.
+                // Each click rebuilds this whole subtree, recreating fresh tweens.
+                Components.Dynamic(replayTrigger, t -> Components.Column(
+                        // Title fade
+                        Components.FadeIn(
+                                Components.Text(
+                                        "Fade-in (replay #" + t + ", 500ms)",
+                                        fontSize(14).textColor(WHITE).bold().build()
+                                ),
+                                500
+                        ),
+
+                        // Slide-in from the left
+                        Components.SlideIn(
+                                Components.Text(
+                                        "← Slide-in from the left (600ms)",
+                                        fontSize(11).textColor(0xFF_DD_DD_DD).margin(12, 0, 4, 0).build()
+                                ),
+                                org.triggersstudio.moddinglib.client.ui.animation.Direction.LEFT,
+                                600
+                        ),
+
+                        // Combined fade + bouncing translate
+                        Components.Animated(
+                                        Components.Text(
+                                                "Bouncing entrance (back-out + fade, 700ms)",
+                                                fontSize(11).textColor(0xFF_DD_DD_DD).margin(8, 0, 4, 0).build()
+                                        ))
+                                .opacity(org.triggersstudio.moddinglib.client.ui.animation.Tween
+                                        .over(0.0, 1.0, 700,
+                                                org.triggersstudio.moddinglib.client.ui.animation.Easing.OUT_CUBIC)
+                                        .play())
+                                .translateY(org.triggersstudio.moddinglib.client.ui.animation.Tween
+                                        .over(20.0, 0.0, 700,
+                                                org.triggersstudio.moddinglib.client.ui.animation.Easing.OUT_BACK)
+                                        .play())
+                                .build()
+                ))
+        );
+
+        return Components.Screen(content, "Animation Demo");
+    }
+
+    /**
      * Create a screen demonstrating the Calendar component bound to a
      * {@code State<LocalDate>}. Click a day to select it; use the arrows to
      * pan months. A reactive Text shows the chosen date.

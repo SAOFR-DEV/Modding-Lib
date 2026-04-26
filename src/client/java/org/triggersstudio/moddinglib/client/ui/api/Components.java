@@ -1,6 +1,9 @@
 package org.triggersstudio.moddinglib.client.ui.api;
 
 import net.minecraft.util.Identifier;
+import org.triggersstudio.moddinglib.client.ui.animation.Direction;
+import org.triggersstudio.moddinglib.client.ui.animation.Easing;
+import org.triggersstudio.moddinglib.client.ui.animation.Tween;
 import org.triggersstudio.moddinglib.client.ui.components.*;
 import org.triggersstudio.moddinglib.client.ui.layout.LayoutType;
 import org.triggersstudio.moddinglib.client.ui.state.State;
@@ -11,6 +14,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
+import java.util.function.DoubleSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -433,6 +437,73 @@ public class Components {
                 min, max, step,
                 () -> (double) state.get(),
                 v -> state.set((short) Math.round(v)));
+    }
+
+    // ===== Animation =====
+    //
+    // Render-time wrapper that applies opacity / translate / scale through
+    // DoubleSuppliers (typically Tweens). The wrapped child renders normally
+    // — animations are visual-only, layout is unchanged.
+
+    /** Start a fluent builder for an animated wrapper. Call .build() at the end. */
+    public static AnimatedBuilder Animated(UIComponent child) {
+        return new AnimatedBuilder(child);
+    }
+
+    /** Fade {@code child} in (0 → 1 alpha) over {@code durationMs}, EASE_OUT. */
+    public static UIComponent FadeIn(UIComponent child, long durationMs) {
+        return new AnimatedComponent(child, Tween.fadeIn(durationMs), null, null, null);
+    }
+
+    /** Fade {@code child} out (1 → 0 alpha) over {@code durationMs}, EASE_OUT. */
+    public static UIComponent FadeOut(UIComponent child, long durationMs) {
+        return new AnimatedComponent(child, Tween.fadeOut(durationMs), null, null, null);
+    }
+
+    /**
+     * Slide {@code child} in from the given direction over {@code durationMs}.
+     * Default offset is 100px; for finer control use the {@link #Animated} builder.
+     */
+    public static UIComponent SlideIn(UIComponent child, Direction from, long durationMs) {
+        int offset = 100;
+        return switch (from) {
+            case LEFT  -> new AnimatedComponent(child, null,
+                    Tween.over(-offset, 0, durationMs, Easing.OUT_CUBIC).play(), null, null);
+            case RIGHT -> new AnimatedComponent(child, null,
+                    Tween.over(offset, 0, durationMs, Easing.OUT_CUBIC).play(), null, null);
+            case TOP   -> new AnimatedComponent(child, null, null,
+                    Tween.over(-offset, 0, durationMs, Easing.OUT_CUBIC).play(), null);
+            case BOTTOM -> new AnimatedComponent(child, null, null,
+                    Tween.over(offset, 0, durationMs, Easing.OUT_CUBIC).play(), null);
+        };
+    }
+
+    /** Builder collecting animation suppliers for an {@link AnimatedComponent}. */
+    public static final class AnimatedBuilder {
+        private final UIComponent child;
+        private DoubleSupplier opacity;
+        private DoubleSupplier translateX;
+        private DoubleSupplier translateY;
+        private DoubleSupplier scale;
+
+        AnimatedBuilder(UIComponent child) {
+            if (child == null) throw new IllegalArgumentException("child must not be null");
+            this.child = child;
+        }
+
+        public AnimatedBuilder opacity(DoubleSupplier supplier) { this.opacity = supplier; return this; }
+        public AnimatedBuilder translateX(DoubleSupplier supplier) { this.translateX = supplier; return this; }
+        public AnimatedBuilder translateY(DoubleSupplier supplier) { this.translateY = supplier; return this; }
+        public AnimatedBuilder translate(DoubleSupplier x, DoubleSupplier y) {
+            this.translateX = x;
+            this.translateY = y;
+            return this;
+        }
+        public AnimatedBuilder scale(DoubleSupplier supplier) { this.scale = supplier; return this; }
+
+        public UIComponent build() {
+            return new AnimatedComponent(child, opacity, translateX, translateY, scale);
+        }
     }
 
     // ===== Calendar =====
