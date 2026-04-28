@@ -45,6 +45,8 @@ public class State<T> implements Supplier<T> {
     private T value;
     private String name;
     private final List<Consumer<T>> listeners = new ArrayList<>();
+    private final List<Subscription> upstreamSubs = new ArrayList<>();
+    private boolean disposed = false;
 
     protected State(T initial) {
         this.value = initial;
@@ -158,7 +160,8 @@ public class State<T> implements Supplier<T> {
      */
     public <R> State<R> map(Function<T, R> mapper) {
         State<R> derived = new State<>(mapper.apply(this.value));
-        this.onChange(v -> derived.applySet(mapper.apply(v)));
+        Subscription sub = this.onChange(v -> derived.applySet(mapper.apply(v)));
+        derived.upstreamSubs.add(sub);
         return derived;
     }
 
@@ -168,8 +171,8 @@ public class State<T> implements Supplier<T> {
      */
     public static <A, B, R> State<R> combine(State<A> a, State<B> b, BiFunction<A, B, R> combiner) {
         State<R> derived = new State<>(combiner.apply(a.get(), b.get()));
-        a.onChange(v -> derived.applySet(combiner.apply(a.get(), b.get())));
-        b.onChange(v -> derived.applySet(combiner.apply(a.get(), b.get())));
+        derived.upstreamSubs.add(a.onChange(v -> derived.applySet(combiner.apply(a.get(), b.get()))));
+        derived.upstreamSubs.add(b.onChange(v -> derived.applySet(combiner.apply(a.get(), b.get()))));
         return derived;
     }
 
@@ -181,10 +184,48 @@ public class State<T> implements Supplier<T> {
      *
      * <p>Useful to plug a user-provided state into a component that exposes
      * its own internal state (e.g. a text field's editor buffer).
+     *
+     * <p>Returns a {@link Subscription} that, when unsubscribed, breaks the
+     * binding in both directions.
      */
-    public static <T> void bindBidirectional(State<T> a, State<T> b) {
+    public static <T> Subscription bindBidirectional(State<T> a, State<T> b) {
         b.set(a.get());
-        a.onChange(b::set);
-        b.onChange(a::set);
+        Subscription s1 = a.onChange(b::set);
+        Subscription s2 = b.onChange(a::set);
+        return () -> {
+            s1.unsubscribe();
+            s2.unsubscribe();
+        };
+    }
+
+    /**
+     * Release this state. Cancels any upstream subscriptions installed by
+     * {@link #map} or {@link #combine} (so the source no longer retains this
+     * derived state) and clears local listeners. If the state is named, it
+     * is also removed from the global registry.
+     *
+     * <p>Idempotent: calling {@code dispose()} multiple times is safe.
+     *
+     * <p>Root states created via {@link #of} have no upstream subscriptions,
+     * so {@code dispose()} simply clears their listeners and registry entry.
+     */
+    public void dispose() {
+        if (disposed) return;
+        disposed = true;
+        for (Subscription sub : upstreamSubs) {
+            sub.unsubscribe();
+        }
+        upstreamSubs.clear();
+        listeners.clear();
+        if (name != null) {
+            NAMED_STATES.remove(name);
+        }
+    }
+
+    /**
+     * @return {@code true} if {@link #dispose()} has been called.
+     */
+    public boolean isDisposed() {
+        return disposed;
     }
 }
