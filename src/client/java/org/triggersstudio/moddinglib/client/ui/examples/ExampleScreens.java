@@ -547,4 +547,145 @@ public class ExampleScreens {
 
         return Components.Screen(content, "Scrollable List");
     }
+
+    /**
+     * Tooltip demo: hover any of the labeled buttons to see a popup appear
+     * after a short delay. Demonstrates default styling, custom styling, and
+     * multi-line content.
+     */
+    public static UIScreen createTooltipScreen() {
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Tooltip Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Hover any button below for ~500ms",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 16, 0).build()
+                ),
+
+                Components.Tooltip(
+                        "Default tooltip styling",
+                        Components.Button(
+                                "Hover me",
+                                backgroundColor(0xFF_2A_2A_2A).textColor(WHITE)
+                                        .height(24).width(140).margin(0, 0, 8, 0).build()
+                        )
+                ),
+
+                Components.Tooltip(
+                        "Custom popup style with\nbrighter background",
+                        Components.Button(
+                                "Custom style",
+                                backgroundColor(0xFF_2A_2A_2A).textColor(WHITE)
+                                        .height(24).width(140).margin(0, 0, 8, 0).build()
+                        ),
+                        Style.backgroundColor(0xF5_30_20_50)
+                                .textColor(0xFF_FF_E0_FF)
+                                .padding(6, 8)
+                                .border(0xFF_AA_55_FF, 1)
+                                .build()
+                ),
+
+                Components.Tooltip(
+                        "Fast tooltip — appears after 100ms only",
+                        Components.Button(
+                                "Fast (100ms)",
+                                backgroundColor(0xFF_2A_2A_2A).textColor(WHITE)
+                                        .height(24).width(140).margin(0, 0, 8, 0).build()
+                        ),
+                        null,
+                        100L
+                ),
+
+                Components.Tooltip(
+                        "Line one\nLine two\nLine three",
+                        Components.Button(
+                                "Multi-line",
+                                backgroundColor(0xFF_2A_2A_2A).textColor(WHITE)
+                                        .height(24).width(140).build()
+                        )
+                )
+        );
+
+        return Components.Screen(content, "Tooltip Demo");
+    }
+
+    /**
+     * Toast demo: clicking a button enqueues a toast of the corresponding type.
+     * Toasts appear top-right, slide in, persist for ~3.5s, then slide out and fade.
+     */
+    public static UIScreen createToastScreen() {
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Toast Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Click a button to spawn a toast (top-right). Active count is shown live.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Button(
+                        "Info",
+                        backgroundColor(0xFF_4A_8C_C8).textColor(WHITE)
+                                .height(28).width(160).margin(0, 0, 6, 0)
+                                .onClick((mx, my, btn) ->
+                                        Components.Toast.info("Server connected"))
+                                .build()
+                ),
+
+                Components.Button(
+                        "Success",
+                        backgroundColor(0xFF_4A_C8_7A).textColor(WHITE)
+                                .height(28).width(160).margin(0, 0, 6, 0)
+                                .onClick((mx, my, btn) ->
+                                        Components.Toast.success("Profile saved"))
+                                .build()
+                ),
+
+                Components.Button(
+                        "Warning",
+                        backgroundColor(0xFF_E0_A0_3A).textColor(WHITE)
+                                .height(28).width(160).margin(0, 0, 6, 0)
+                                .onClick((mx, my, btn) ->
+                                        Components.Toast.warning("Disk space low"))
+                                .build()
+                ),
+
+                Components.Button(
+                        "Error",
+                        backgroundColor(0xFF_C8_4A_4A).textColor(WHITE)
+                                .height(28).width(160).margin(0, 0, 12, 0)
+                                .onClick((mx, my, btn) ->
+                                        Components.Toast.error("Connection lost"))
+                                .build()
+                ),
+
+                Components.Button(
+                        "Custom (long, 8s)",
+                        backgroundColor(0xFF_2A_2A_2A).textColor(WHITE)
+                                .height(28).width(160).margin(0, 0, 6, 0)
+                                .onClick((mx, my, btn) -> Components.Toast.show(
+                                        "This one stays visible 8 seconds",
+                                        org.triggersstudio.moddinglib.client.ui.toast.ToastType.INFO,
+                                        8000L))
+                                .build()
+                ),
+
+                Components.Text(
+                        () -> "Active toasts: " +
+                                org.triggersstudio.moddinglib.client.ui.toast.ToastManager.activeCount(),
+                        fontSize(10).textColor(0xFF_77_77_77).margin(12, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "Toast Demo");
+    }
 }

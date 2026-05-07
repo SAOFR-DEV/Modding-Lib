@@ -282,4 +282,15 @@ public class ContainerScope {
     public void AccordionSingle(State<Integer> openIndex, Style headerStyle, AccordionSection... sections) {
         children.add(Components.AccordionSingle(openIndex, headerStyle, sections));
     }
+
+    // --- Tooltip ---
+    public void Tooltip(String text, UIComponent child) {
+        children.add(Components.Tooltip(text, child));
+    }
+    public void Tooltip(String text, UIComponent child, Style tooltipStyle) {
+        children.add(Components.Tooltip(text, child, tooltipStyle));
+    }
+    public void Tooltip(String text, UIComponent child, Style tooltipStyle, long delayMs) {
+        children.add(Components.Tooltip(text, child, tooltipStyle, delayMs));
+    }
 }

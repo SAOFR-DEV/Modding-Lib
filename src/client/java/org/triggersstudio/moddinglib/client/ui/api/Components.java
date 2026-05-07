@@ -618,6 +618,63 @@ public class Components {
         return comp;
     }
 
+    // ===== Tooltip =====
+    //
+    // Wraps any child. After the cursor hovers the child for delayMs (default
+    // 500), a small popup with the given text appears near the cursor and
+    // follows it until the cursor leaves. Auto-flips at screen edges. Use
+    // \n in the text for multi-line content. Pass a custom Style for the
+    // popup's background, text color, padding, border.
+
+    public static UIComponent Tooltip(String text, UIComponent child) {
+        return new TooltipComponent(text, child);
+    }
+
+    public static UIComponent Tooltip(String text, UIComponent child, Style tooltipStyle) {
+        return new TooltipComponent(text, child, tooltipStyle);
+    }
+
+    public static UIComponent Tooltip(String text, UIComponent child, Style tooltipStyle, long delayMs) {
+        return new TooltipComponent(text, child, tooltipStyle, delayMs);
+    }
+
+    // ===== Toast =====
+    //
+    // Global notification stack rendered at the top-right of the active
+    // UIScreen. Toasts slide in, persist for `durationMs`, then slide out
+    // and fade. Independent of any particular screen — calling Toast.info
+    // from anywhere in mod code (on the render thread) enqueues a toast.
+
+    public static final class Toast {
+        private Toast() {}
+
+        public static void info(String message) {
+            org.triggersstudio.moddinglib.client.ui.toast.ToastManager.show(
+                    message, org.triggersstudio.moddinglib.client.ui.toast.ToastType.INFO);
+        }
+
+        public static void success(String message) {
+            org.triggersstudio.moddinglib.client.ui.toast.ToastManager.show(
+                    message, org.triggersstudio.moddinglib.client.ui.toast.ToastType.SUCCESS);
+        }
+
+        public static void warning(String message) {
+            org.triggersstudio.moddinglib.client.ui.toast.ToastManager.show(
+                    message, org.triggersstudio.moddinglib.client.ui.toast.ToastType.WARNING);
+        }
+
+        public static void error(String message) {
+            org.triggersstudio.moddinglib.client.ui.toast.ToastManager.show(
+                    message, org.triggersstudio.moddinglib.client.ui.toast.ToastType.ERROR);
+        }
+
+        public static void show(String message,
+                                org.triggersstudio.moddinglib.client.ui.toast.ToastType type,
+                                long durationMs) {
+            org.triggersstudio.moddinglib.client.ui.toast.ToastManager.show(message, type, durationMs);
+        }
+    }
+
     // ===== Screen Creation =====
     
     /**

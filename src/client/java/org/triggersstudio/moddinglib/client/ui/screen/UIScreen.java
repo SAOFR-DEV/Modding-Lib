@@ -7,6 +7,7 @@ import org.triggersstudio.moddinglib.client.ui.components.UIComponent;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
 import org.triggersstudio.moddinglib.client.ui.debug.DebugOverlay;
 import org.triggersstudio.moddinglib.client.ui.rendering.UIRenderer;
+import org.triggersstudio.moddinglib.client.ui.toast.ToastManager;
 
 /**
  * Minecraft Screen adapter for UI component trees.
@@ -47,6 +48,12 @@ public class UIScreen extends Screen {
 
         // Render the UI component tree
         UIRenderer.render(rootComponent, drawContext, this.width, this.height);
+
+        // Tooltips and other deferred per-frame overlays draw above the tree.
+        uiContext.renderOverlays(drawContext);
+
+        // Toasts draw above per-screen overlays (global notification stack).
+        ToastManager.render(drawContext, this.width, this.height);
 
         // Debug overlay draws on top of everything else.
         DebugOverlay.render(drawContext, rootComponent, mouseX, mouseY,
