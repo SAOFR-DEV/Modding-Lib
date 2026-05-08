@@ -12,6 +12,7 @@ import org.bytedeco.ffmpeg.swresample.SwrContext;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.lwjgl.openal.AL10;
+import org.lwjgl.openal.AL11;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -148,9 +149,7 @@ public final class AudioStream implements AutoCloseable {
 
         // swr_alloc_set_opts2 wants a SwrContext** in C. In bytedeco we
         // pass an empty SwrContext and the API populates the underlying
-        // pointer. The reference returned through the @ByPtrPtr param
-        // is the one we use afterward.
-        SwrContext[] swrHolder = new SwrContext[]{ null };
+        // pointer through @ByPtrPtr.
         SwrContext swrCtx = new SwrContext(null);
         int swrInit = swr_alloc_set_opts2(
                 swrCtx,
@@ -276,7 +275,7 @@ public final class AudioStream implements AutoCloseable {
         // Snapshot the clock for cross-thread reads.
         InFlightBuffer head = alQueue.peekFirst();
         if (head != null) {
-            int sampleOffset = AL10.alGetSourcei(alSource, AL10.AL_SAMPLE_OFFSET);
+            int sampleOffset = AL10.alGetSourcei(alSource, AL11.AL_SAMPLE_OFFSET);
             long offsetNanos = (long) sampleOffset * 1_000_000_000L / OUT_SAMPLE_RATE;
             lastClockNanos = head.startPtsNanos + offsetNanos;
             lastClockSampleAtNanos = System.nanoTime();
