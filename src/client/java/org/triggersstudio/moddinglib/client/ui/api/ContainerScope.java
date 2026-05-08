@@ -283,6 +283,18 @@ public class ContainerScope {
         children.add(Components.AccordionSingle(openIndex, headerStyle, sections));
     }
 
+    // --- Skeleton ---
+    public void Skeleton() {
+        children.add(Components.Skeleton());
+    }
+    public void Skeleton(int width, int height) {
+        children.add(Components.Skeleton(width, height));
+    }
+    public void Skeleton(int width, int height, int baseColor, int shimmerColor,
+                         long periodMs, Style style) {
+        children.add(Components.Skeleton(width, height, baseColor, shimmerColor, periodMs, style));
+    }
+
     // --- ComboBox ---
     public <T> void ComboBox(State<T> selection, List<T> items) {
         children.add(Components.ComboBox(selection, items));

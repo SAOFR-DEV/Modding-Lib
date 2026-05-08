@@ -89,7 +89,7 @@ The compiled JAR files will be available in the `build/libs/` directory.
 - [x] Add tooltips for UIs
 - [x] Add pagination for UIs
 - [x] Add accordion for UIs
-- [ ] Add Skeleton support for UIs
+- [x] Add Skeleton support for UIs
 - [x] Add spiner for UIs
 - [x] Add calendar for UIs
 

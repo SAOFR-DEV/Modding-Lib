@@ -549,6 +549,66 @@ public class ExampleScreens {
     }
 
     /**
+     * Skeleton demo: loading placeholders simulating a card layout. Each
+     * skeleton has a shimmer sweep with the same period, so all bars travel
+     * in lock-step — a cheap way to make a loading state feel coherent.
+     */
+    public static UIScreen createSkeletonScreen() {
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Skeleton Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Card placeholder — title, paragraph, action row",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Column(
+                        padding(12).backgroundColor(0xFF_22_22_22).width(300).build(),
+
+                        // Avatar + name row
+                        Components.Row(row -> {
+                            row.Skeleton(40, 40);
+                            row.add(Components.Column(col -> {
+                                col.add(Components.Text(" ",
+                                        fontSize(8).textColor(0xFF_22_22_22).build()));
+                                col.Skeleton(140, 12);
+                                col.add(Components.Text(" ",
+                                        fontSize(8).textColor(0xFF_22_22_22).build()));
+                                col.Skeleton(80, 10);
+                            }));
+                        }),
+
+                        Components.Text(" ", fontSize(8).build()),
+
+                        // Paragraph lines
+                        Components.Skeleton(MATCH_PARENT, 10),
+                        Components.Text(" ", fontSize(6).build()),
+                        Components.Skeleton(MATCH_PARENT, 10),
+                        Components.Text(" ", fontSize(6).build()),
+                        Components.Skeleton(MATCH_PARENT, 10),
+                        Components.Text(" ", fontSize(6).build()),
+                        Components.Skeleton(180, 10),
+
+                        Components.Text(" ", fontSize(10).build()),
+
+                        // Action buttons
+                        Components.Row(row -> {
+                            row.Skeleton(70, 22);
+                            row.add(Components.Text(" ", fontSize(8).build()));
+                            row.Skeleton(70, 22);
+                        })
+                )
+        );
+
+        return Components.Screen(content, "Skeleton Demo");
+    }
+
+    /**
      * ComboBox demo: two drop-downs bound to {@link State} — one over a list
      * of strings, one over an enum with a custom labeler. A reactive Text
      * shows the live selection. Clicking outside the popover dismisses it.

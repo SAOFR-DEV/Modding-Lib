@@ -618,6 +618,26 @@ public class Components {
         return comp;
     }
 
+    // ===== Skeleton =====
+    //
+    // Loading placeholder with a shimmer sweep. Three overloads: default
+    // (full-width line, 12px tall), explicit width/height, and fully
+    // configured (size + base + shimmer + period + style).
+
+    public static UIComponent Skeleton() {
+        return new SkeletonComponent();
+    }
+
+    public static UIComponent Skeleton(int width, int height) {
+        return new SkeletonComponent(width, height);
+    }
+
+    public static UIComponent Skeleton(int width, int height,
+                                       int baseColor, int shimmerColor,
+                                       long periodMs, Style style) {
+        return new SkeletonComponent(width, height, baseColor, shimmerColor, periodMs, style);
+    }
+
     // ===== ComboBox =====
     //
     // Drop-down selector bound to a State<T>. Closed: shows the current
