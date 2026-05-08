@@ -94,6 +94,9 @@ public final class VideoPlayer implements AutoCloseable {
     /** Seek command from any thread → consumed by decoder thread. */
     private volatile boolean seekRequested = false;
     private volatile long seekTargetMicros = 0L;
+    /** After a seek-while-paused, force the decoder to publish exactly one
+     *  frame so the visible image refreshes without resuming playback. */
+    private volatile boolean forceFrameAfterSeek = false;
 
     private VideoPlayer(String source, AVFormatContext formatCtx, int videoStreamIdx,
                         AVCodecContext videoCodecCtx, SwsContext swsCtx,
@@ -432,8 +435,11 @@ public final class VideoPlayer implements AutoCloseable {
                 if (seekRequested) {
                     seekRequested = false;
                     doSeek(seekTargetMicros);
+                    // If we're paused, drain just enough to publish one
+                    // post-seek frame so the visible image refreshes.
+                    if (paused) forceFrameAfterSeek = true;
                 }
-                if (paused) {
+                if (paused && !forceFrameAfterSeek) {
                     Thread.sleep(15);
                     continue;
                 }
@@ -503,33 +509,46 @@ public final class VideoPlayer implements AutoCloseable {
                     ? 0L
                     : (long) (pts * timeBase * 1_000_000_000.0);
 
-            // Wait until the master clock catches up to this frame.
-            while (running.get()) {
-                if (paused) {
-                    Thread.sleep(15);
+            // Capture & clear the post-seek-while-paused flag so we publish
+            // exactly one frame without waiting on the (frozen) clock.
+            boolean wasForced = forceFrameAfterSeek;
+            if (wasForced) forceFrameAfterSeek = false;
+
+            if (!wasForced) {
+                // Wait until the master clock catches up to this frame.
+                while (running.get()) {
+                    if (paused) {
+                        Thread.sleep(15);
+                        continue;
+                    }
+                    long clockNanos = currentClockNanos();
+                    long deltaNanos = frameTargetNanos - clockNanos;
+                    if (deltaNanos <= 0) break;
+                    // If clock looks idle (audio not started yet, or huge jump),
+                    // poll fast and re-check without sleeping forever.
+                    long sleepMs = Math.max(1, Math.min(20L, deltaNanos / 1_000_000L));
+                    Thread.sleep(sleepMs);
+                }
+
+                // If we've fallen >100ms behind the master clock, drop the
+                // frame to catch up rather than render a stale one.
+                long clockAfter = currentClockNanos();
+                if (frameTargetNanos != 0 && clockAfter - frameTargetNanos > 100_000_000L) {
+                    av_frame_unref(decodedFrame);
                     continue;
                 }
-                long clockNanos = currentClockNanos();
-                long deltaNanos = frameTargetNanos - clockNanos;
-                if (deltaNanos <= 0) break;
-                // If clock looks idle (audio not started yet, or huge jump),
-                // poll fast and re-check without sleeping forever.
-                long sleepMs = Math.max(1, Math.min(20L, deltaNanos / 1_000_000L));
-                Thread.sleep(sleepMs);
-            }
-
-            // If we've fallen >100ms behind the master clock, drop the frame
-            // to catch up rather than render a stale one.
-            long clockAfter = currentClockNanos();
-            if (frameTargetNanos != 0 && clockAfter - frameTargetNanos > 100_000_000L) {
-                av_frame_unref(decodedFrame);
-                continue;
             }
 
             synchronized (frameLock) {
                 frameVersion.incrementAndGet();
             }
             av_frame_unref(decodedFrame);
+
+            if (wasForced) {
+                // Single-frame post-seek refresh; let the outer loop go back
+                // to the pause sleep instead of decoding ahead.
+                return;
+            }
         }
     }
 
