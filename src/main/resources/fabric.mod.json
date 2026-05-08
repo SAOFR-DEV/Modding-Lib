@@ -9,6 +9,7 @@
   "license": "MIT",
   "icon": "assets/moddinglib/icon.png",
   "environment": "client",
+  "accessWidener": "moddinglib.accesswidener",
   "entrypoints": {
     "fabric-datagen": [
       "org.triggersstudio.moddinglib.client.ModdingLibDataGenerator"

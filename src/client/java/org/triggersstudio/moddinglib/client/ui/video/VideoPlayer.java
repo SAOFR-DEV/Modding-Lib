@@ -11,6 +11,7 @@ import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.DoublePointer;
+import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
 
 import java.nio.ByteBuffer;
@@ -399,6 +400,27 @@ public final class VideoPlayer implements AutoCloseable {
             IntBuffer ints = rgbView.asIntBuffer();
             ints.position(0);
             ints.get(dest, 0, n);
+            return v;
+        }
+    }
+
+    /**
+     * Fast path: native-to-native memcpy of the latest decoded frame into
+     * the destination native memory address (typically a Minecraft
+     * {@code NativeImage.pointer}). No JVM heap copy, no per-pixel JNI.
+     *
+     * <p>Returns the frame version actually written; equal to
+     * {@code lastVersion} when no new frame is available.
+     */
+    public long copyLatestFrameToNative(long destAddr, long lastVersion) {
+        if (destAddr == 0L) return lastVersion;
+        synchronized (frameLock) {
+            long v = frameVersion.get();
+            if (v == 0 || v == lastVersion) return v;
+            long bytes = (long) width * height * 4;
+            BytePointer dst = new BytePointer((Pointer) null);
+            dst.address(destAddr).capacity(bytes);
+            Pointer.memcpy(dst, rgbBuffer, bytes);
             return v;
         }
     }

@@ -24,13 +24,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * detach. Pass {@code ownsPlayer=false} to share a single player across
  * multiple components or keep it alive across screen transitions.
  *
- * <p>Phase-1 limitations:
- * <ul>
- *   <li>Per-pixel ARGB pack on render thread — slow at 1080p+. Phase 3
- *       will wire sws_scale directly into the NativeImage buffer.</li>
- *   <li>No volume / audio output (player decodes video stream only).</li>
- *   <li>If the source ends and {@code isEnded()}, the last frame is held.</li>
- * </ul>
+ * <p>Upload path: native memcpy from the FFmpeg scale buffer directly
+ * into the {@code NativeImage.pointer} memory (exposed via the access
+ * widener). One JNI call per frame instead of width × height
+ * setColorArgb calls — keeps 1080p smooth on the render thread. If the
+ * pointer field can't be accessed for some reason, falls back to a
+ * per-pixel pack on a JVM-side {@code int[]} buffer.
  */
 public class VideoComponent extends UIComponent {
 
@@ -102,11 +101,25 @@ public class VideoComponent extends UIComponent {
         long latestVersion = player.frameVersion();
         if (latestVersion > 0 && latestVersion != uploadedFrameVersion) {
             ensureTexture();
-            long actualVersion = player.readLatestFrameArgb(frameArgb, uploadedFrameVersion);
-            if (actualVersion != uploadedFrameVersion && texture != null && texture.getImage() != null) {
-                copyFrameToImage(texture.getImage());
-                texture.upload();
-                uploadedFrameVersion = actualVersion;
+            if (texture != null) {
+                NativeImage img = texture.getImage();
+                long actualVersion = uploadedFrameVersion;
+                // Fast path: native memcpy directly into the NativeImage's
+                // GPU-bound buffer. Skips the per-pixel setColorArgb JNI.
+                if (img != null && img.pointer != 0L) {
+                    actualVersion = player.copyLatestFrameToNative(img.pointer, uploadedFrameVersion);
+                } else if (img != null) {
+                    // Fallback: per-pixel pack via setColorArgb. Slower, used
+                    // only if the access widener didn't expose the pointer.
+                    actualVersion = player.readLatestFrameArgb(frameArgb, uploadedFrameVersion);
+                    if (actualVersion != uploadedFrameVersion) {
+                        copyFrameToImage(img);
+                    }
+                }
+                if (actualVersion != uploadedFrameVersion) {
+                    texture.upload();
+                    uploadedFrameVersion = actualVersion;
+                }
             }
         }
 

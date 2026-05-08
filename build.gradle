@@ -17,6 +17,11 @@ base {
 loom {
     splitEnvironmentSourceSets()
 
+    // Access widener exposes private fields/methods on Minecraft classes
+    // for direct access from our code. Used for the fast video upload
+    // path (memcpy into NativeImage.pointer).
+    accessWidenerPath = file("src/main/resources/moddinglib.accesswidener")
+
     mods {
         "moddinglib" {
             sourceSet sourceSets.main
