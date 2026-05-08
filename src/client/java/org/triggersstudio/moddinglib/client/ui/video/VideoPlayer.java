@@ -11,8 +11,8 @@ import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.DoublePointer;
-import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
+import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -418,9 +418,10 @@ public final class VideoPlayer implements AutoCloseable {
             long v = frameVersion.get();
             if (v == 0 || v == lastVersion) return v;
             long bytes = (long) width * height * 4;
-            BytePointer dst = new BytePointer((Pointer) null);
-            dst.address(destAddr).capacity(bytes);
-            Pointer.memcpy(dst, rgbBuffer, bytes);
+            // LWJGL's memCopy is a direct native-to-native memcpy by address;
+            // bytedeco's BytePointer.address() returns the underlying long
+            // pointer of our scaling buffer.
+            MemoryUtil.memCopy(rgbBuffer.address(), destAddr, bytes);
             return v;
         }
     }
