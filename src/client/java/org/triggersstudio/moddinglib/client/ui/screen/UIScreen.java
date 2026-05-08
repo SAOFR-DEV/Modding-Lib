@@ -69,6 +69,10 @@ public class UIScreen extends Screen {
     @Override
     public boolean mouseClicked(double x, double y, int button) {
         if (DebugOverlay.handleMouseClick(rootComponent, x, y, this.width, this.height)) return true;
+        // Popup handlers (open combo boxes etc.) get first crack — they can
+        // consume the click (item selection in a popover that extends beyond
+        // its parent's bounds) or just observe and decline.
+        if (uiContext.dispatchPopupClick(x, y, button)) return true;
         UIComponent preFocus = uiContext.getFocused();
         boolean consumed = rootComponent.onMouseClick(x, y, button);
         // Blur on click outside: if focus didn't change during dispatch and the

@@ -618,6 +618,47 @@ public class Components {
         return comp;
     }
 
+    // ===== ComboBox =====
+    //
+    // Drop-down selector bound to a State<T>. Closed: shows the current
+    // selection (or placeholder) in a button-like trigger. Open: popover with
+    // every item; click to select, click outside to dismiss. The popover
+    // renders through the screen overlay layer, so it can extend past its
+    // parent's bounds without being clipped.
+
+    public static <T> UIComponent ComboBox(State<T> selection, List<T> items) {
+        return new ComboBoxComponent<>(selection, items, null,
+                null, null, null, null, "Select…");
+    }
+
+    public static <T> UIComponent ComboBox(State<T> selection, List<T> items,
+                                           Function<T, String> labeler) {
+        return new ComboBoxComponent<>(selection, items, labeler,
+                null, null, null, null, "Select…");
+    }
+
+    public static <T> UIComponent ComboBox(State<T> selection, List<T> items,
+                                           Function<T, String> labeler, String placeholder) {
+        return new ComboBoxComponent<>(selection, items, labeler,
+                null, null, null, null, placeholder);
+    }
+
+    public static <T> UIComponent ComboBox(State<T> selection, List<T> items,
+                                           Function<T, String> labeler,
+                                           Style triggerStyle, Style popoverStyle) {
+        return new ComboBoxComponent<>(selection, items, labeler,
+                triggerStyle, popoverStyle, null, null, "Select…");
+    }
+
+    public static <T> UIComponent ComboBox(State<T> selection, List<T> items,
+                                           Function<T, String> labeler,
+                                           Style triggerStyle, Style popoverStyle,
+                                           Style itemStyle, Style selectedItemStyle,
+                                           String placeholder) {
+        return new ComboBoxComponent<>(selection, items, labeler,
+                triggerStyle, popoverStyle, itemStyle, selectedItemStyle, placeholder);
+    }
+
     // ===== Spinner =====
     //
     // Indeterminate loading indicator. Fixed-size circular dot trail with

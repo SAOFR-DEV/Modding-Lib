@@ -283,6 +283,29 @@ public class ContainerScope {
         children.add(Components.AccordionSingle(openIndex, headerStyle, sections));
     }
 
+    // --- ComboBox ---
+    public <T> void ComboBox(State<T> selection, List<T> items) {
+        children.add(Components.ComboBox(selection, items));
+    }
+    public <T> void ComboBox(State<T> selection, List<T> items, Function<T, String> labeler) {
+        children.add(Components.ComboBox(selection, items, labeler));
+    }
+    public <T> void ComboBox(State<T> selection, List<T> items, Function<T, String> labeler,
+                             String placeholder) {
+        children.add(Components.ComboBox(selection, items, labeler, placeholder));
+    }
+    public <T> void ComboBox(State<T> selection, List<T> items, Function<T, String> labeler,
+                             Style triggerStyle, Style popoverStyle) {
+        children.add(Components.ComboBox(selection, items, labeler, triggerStyle, popoverStyle));
+    }
+    public <T> void ComboBox(State<T> selection, List<T> items, Function<T, String> labeler,
+                             Style triggerStyle, Style popoverStyle,
+                             Style itemStyle, Style selectedItemStyle,
+                             String placeholder) {
+        children.add(Components.ComboBox(selection, items, labeler,
+                triggerStyle, popoverStyle, itemStyle, selectedItemStyle, placeholder));
+    }
+
     // --- Spinner ---
     public void Spinner() {
         children.add(Components.Spinner());

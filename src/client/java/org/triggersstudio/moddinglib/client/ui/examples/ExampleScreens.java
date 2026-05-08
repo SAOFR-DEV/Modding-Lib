@@ -549,6 +549,59 @@ public class ExampleScreens {
     }
 
     /**
+     * ComboBox demo: two drop-downs bound to {@link State} — one over a list
+     * of strings, one over an enum with a custom labeler. A reactive Text
+     * shows the live selection. Clicking outside the popover dismisses it.
+     */
+    public static UIScreen createComboBoxScreen() {
+        java.util.List<String> fruits = java.util.List.of(
+                "Apple", "Banana", "Cherry", "Dragonfruit", "Elderberry", "Fig", "Grape");
+        State<String> fruit = State.of("Banana", "demo.combo.fruit");
+
+        State<java.time.DayOfWeek> day = State.of(java.time.DayOfWeek.MONDAY, "demo.combo.day");
+        java.util.List<java.time.DayOfWeek> days = java.util.List.of(java.time.DayOfWeek.values());
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "ComboBox Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Click a combo box, pick an item. Click outside to dismiss.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Text(
+                        "Fruit:",
+                        fontSize(11).textColor(0xFF_AA_AA_AA).margin(6, 0, 4, 0).build()
+                ),
+                Components.ComboBox(fruit, fruits),
+
+                Components.Text(
+                        fruit.map(f -> "You picked: " + f),
+                        fontSize(10).textColor(0xFF_88_DD_88).margin(6, 0, 12, 0).build()
+                ),
+
+                Components.Text(
+                        "Day of week (custom labeler — Title Case):",
+                        fontSize(11).textColor(0xFF_AA_AA_AA).margin(6, 0, 4, 0).build()
+                ),
+                Components.ComboBox(day, days,
+                        d -> d.name().charAt(0) + d.name().substring(1).toLowerCase()),
+
+                Components.Text(
+                        day.map(d -> "Selected: " + d.name()),
+                        fontSize(10).textColor(0xFF_88_DD_88).margin(6, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "ComboBox Demo");
+    }
+
+    /**
      * Spinner demo: shows a few spinners with different sizes, colors, and
      * rotation speeds. Demonstrates the indeterminate loading indicator built
      * on local nanoTime tracking — no global ticker, no input bindings.
