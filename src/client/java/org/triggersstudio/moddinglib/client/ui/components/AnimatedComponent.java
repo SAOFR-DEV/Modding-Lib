@@ -6,6 +6,7 @@ import org.triggersstudio.moddinglib.client.ui.layout.LayoutType;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
 import java.util.function.DoubleSupplier;
+import java.util.function.IntSupplier;
 
 /**
  * Wraps a single child and applies render-time transformations driven by
@@ -32,18 +33,29 @@ public class AnimatedComponent extends Container {
     private final DoubleSupplier translateX;
     private final DoubleSupplier translateY;
     private final DoubleSupplier scale;
+    private final IntSupplier backgroundColor;
 
     public AnimatedComponent(UIComponent child,
                              DoubleSupplier opacity,
                              DoubleSupplier translateX,
                              DoubleSupplier translateY,
                              DoubleSupplier scale) {
+        this(child, opacity, translateX, translateY, scale, null);
+    }
+
+    public AnimatedComponent(UIComponent child,
+                             DoubleSupplier opacity,
+                             DoubleSupplier translateX,
+                             DoubleSupplier translateY,
+                             DoubleSupplier scale,
+                             IntSupplier backgroundColor) {
         super(Style.DEFAULT, LayoutType.VERTICAL, 0);
         if (child == null) throw new IllegalArgumentException("child must not be null");
         this.opacity = opacity;
         this.translateX = translateX;
         this.translateY = translateY;
         this.scale = scale;
+        this.backgroundColor = backgroundColor;
         addChild(child);
     }
 
@@ -77,6 +89,13 @@ public class AnimatedComponent extends Container {
         }
 
         try {
+            // Animated background fill behind the child if a color supplier is set.
+            if (backgroundColor != null) {
+                int bg = backgroundColor.getAsInt();
+                if (((bg >>> 24) & 0xFF) != 0) {
+                    drawContext.fill(x, y, x + width, y + height, bg);
+                }
+            }
             super.render(drawContext);
         } finally {
             if (hasOpacity) {
