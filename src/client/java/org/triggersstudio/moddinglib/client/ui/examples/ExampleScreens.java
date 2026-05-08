@@ -349,6 +349,81 @@ public class ExampleScreens {
     }
 
     /**
+     * Corner-radius demo: showcases how the new {@code borderRadius} style
+     * field flows through {@link Components#Row}, Buttons, sliders, progress
+     * bars, etc. Each row pairs a sharp variant with a rounded one for
+     * visual comparison.
+     */
+    public static UIScreen createCornerRadiusScreen() {
+        State<Double> progress = State.of(0.65, "demo.corners.progress");
+        State<Integer> volume = State.of(50, "demo.corners.volume");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Corner Radius Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Each pair: sharp (left) vs rounded (right).",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Row(row -> {
+                    row.Button("Sharp",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(28).width(100).margin(0, 8, 0, 0).build());
+                    row.Button("Rounded",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(28).width(100).borderRadius(8).build());
+                }),
+
+                Components.Text(
+                        "Progress bar:",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(16, 0, 4, 0).build()
+                ),
+                Components.ProgressBar(progress, 0, 1,
+                        backgroundColor(0xFF_22_22_22).width(220).height(14).build(),
+                        backgroundColor(0xFF_55_AA_FF).build()),
+                Components.Text(" ", fontSize(6).build()),
+                Components.ProgressBar(progress, 0, 1,
+                        backgroundColor(0xFF_22_22_22).width(220).height(14).borderRadius(7).build(),
+                        backgroundColor(0xFF_55_AA_FF).borderRadius(7).build()),
+
+                Components.Text(
+                        "Slider — pill thumb (radius=4):",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(16, 0, 4, 0).build()
+                ),
+                Components.SliderInt(volume, 0, 100, 1,
+                        backgroundColor(0xFF_55_88_FF).width(220).height(6).borderRadius(3).build(),
+                        backgroundColor(WHITE).width(8).height(16).borderRadius(4).build(),
+                        backgroundColor(0xFF_33_33_33).borderRadius(3).build()),
+
+                Components.Text(
+                        "Card with rounded border:",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(16, 0, 4, 0).build()
+                ),
+                Components.Column(
+                        backgroundColor(0xFF_22_22_22)
+                                .border(0xFF_55_88_FF, 2)
+                                .borderRadius(10)
+                                .padding(12)
+                                .width(220).build(),
+                        Components.Text("Rounded card",
+                                fontSize(12).textColor(WHITE).bold().build()),
+                        Components.Text("Background, border, and radius all flow",
+                                fontSize(10).textColor(0xFF_AA_AA_AA).margin(4, 0, 0, 0).build()),
+                        Components.Text("through the same Style.borderRadius field.",
+                                fontSize(10).textColor(0xFF_AA_AA_AA).build())
+                )
+        );
+
+        return Components.Screen(content, "Corner Radius Demo");
+    }
+
+    /**
      * TextArea demo: a multi-line editor bound to a {@code State<String>}.
      * Optional max length is set to 500. Tab inserts 4 spaces. Live readouts
      * below show the current line count and character total.

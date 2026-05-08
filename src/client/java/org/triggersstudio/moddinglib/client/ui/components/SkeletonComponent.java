@@ -2,6 +2,7 @@ package org.triggersstudio.moddinglib.client.ui.components;
 
 import net.minecraft.client.gui.DrawContext;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
@@ -79,8 +80,9 @@ public class SkeletonComponent extends UIComponent {
 
     @Override
     public void render(DrawContext drawContext) {
+        int radius = style.getBorderRadius();
         // Base fill.
-        drawContext.fill(x, y, x + width, y + height, baseColor);
+        Shapes.fillRoundRect(drawContext, x, y, width, height, radius, baseColor);
 
         if (startNanos < 0) startNanos = System.nanoTime();
         double elapsedMs = (System.nanoTime() - startNanos) / 1_000_000.0;
@@ -88,14 +90,15 @@ public class SkeletonComponent extends UIComponent {
         phase = phase - Math.floor(phase); // 0..1
 
         // Shimmer band: a moving vertical strip of width = bandWidth.
-        // Travel range covers the full span plus the band so the band fully
-        // exits the right edge before re-entering from the left.
         int bandWidth = Math.max(20, width / 4);
         int travel = width + bandWidth;
         int bandX = x - bandWidth + (int) Math.round(phase * travel);
 
         // Three-step gradient (faded edge / core / faded edge) drawn as three
         // thin slices to give a soft band without a real per-pixel gradient.
+        // Note: shimmer is clipped to the rectangle bounds — at corner radius
+        // it briefly pokes out, but the base fill already shows the rounded
+        // shape so the visual difference is small.
         int slice = bandWidth / 3;
         int faintAlpha = ((shimmerColor >>> 24) & 0xFF) / 3;
         int faintColor = (faintAlpha << 24) | (shimmerColor & 0x00_FF_FF_FF);

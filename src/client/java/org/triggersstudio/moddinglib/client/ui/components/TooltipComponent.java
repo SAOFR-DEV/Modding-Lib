@@ -3,6 +3,7 @@ package org.triggersstudio.moddinglib.client.ui.components;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
 /**
@@ -56,6 +57,7 @@ public class TooltipComponent extends Container {
                 .textColor(0xFF_FF_FF_FF)
                 .padding(4, 6)
                 .border(0xFF_55_55_88, 1)
+                .borderRadius(3)
                 .build();
     }
 
@@ -134,14 +136,11 @@ public class TooltipComponent extends Container {
         int border = applyAlphaFactor(tooltipStyle.getBorderColor(), fade);
         int textColor = applyAlphaFactor(tooltipStyle.getTextColor(), fade);
 
-        // Background + border.
-        drawContext.fill(boxX, boxY, boxX + boxW, boxY + boxH, bg);
+        int tipRadius = tooltipStyle.getBorderRadius();
+        Shapes.fillRoundRect(drawContext, boxX, boxY, boxW, boxH, tipRadius, bg);
         if (tooltipStyle.getBorderWidth() > 0) {
-            int bw = tooltipStyle.getBorderWidth();
-            drawContext.fill(boxX, boxY, boxX + boxW, boxY + bw, border);
-            drawContext.fill(boxX, boxY + boxH - bw, boxX + boxW, boxY + boxH, border);
-            drawContext.fill(boxX, boxY, boxX + bw, boxY + boxH, border);
-            drawContext.fill(boxX + boxW - bw, boxY, boxX + boxW, boxY + boxH, border);
+            Shapes.drawRoundRectBorder(drawContext, boxX, boxY, boxW, boxH,
+                    tipRadius, tooltipStyle.getBorderWidth(), border);
         }
 
         int textX = boxX + tooltipStyle.getPadding().left;

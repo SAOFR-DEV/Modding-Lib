@@ -2,6 +2,7 @@ package org.triggersstudio.moddinglib.client.ui.components;
 
 import net.minecraft.client.gui.DrawContext;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.layout.LayoutType;
@@ -152,34 +153,17 @@ public class Container extends UIComponent {
     
     @Override
     public void render(DrawContext drawContext) {
-        // Draw background
+        int radius = style.getBorderRadius();
         if (style.getBackgroundColor() != 0x00_00_00_00) {
-            drawContext.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            Shapes.fillRoundRect(drawContext, x, y, width, height, radius, style.getBackgroundColor());
         }
-        
-        // Draw border
         if (style.getBorderWidth() > 0) {
-            drawBorder(drawContext);
+            Shapes.drawRoundRectBorder(drawContext, x, y, width, height,
+                    radius, style.getBorderWidth(), style.getBorderColor());
         }
-        
-        // Render all children
         for (UIComponent child : children) {
             child.render(drawContext);
         }
-    }
-    
-    protected void drawBorder(DrawContext drawContext) {
-        int borderWidth = style.getBorderWidth();
-        int color = style.getBorderColor();
-        
-        // Top border
-        drawContext.fill(x, y, x + width, y + borderWidth, color);
-        // Bottom border
-        drawContext.fill(x, y + height - borderWidth, x + width, y + height, color);
-        // Left border
-        drawContext.fill(x, y, x + borderWidth, y + height, color);
-        // Right border
-        drawContext.fill(x + width - borderWidth, y, x + width, y + height, color);
     }
     
     @Override

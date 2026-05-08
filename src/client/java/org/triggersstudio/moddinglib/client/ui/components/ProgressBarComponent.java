@@ -1,5 +1,6 @@
 package org.triggersstudio.moddinglib.client.ui.components;
 
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import net.minecraft.client.MinecraftClient;
@@ -80,22 +81,26 @@ public class ProgressBarComponent extends UIComponent {
         if (ratio < 0) ratio = 0;
         if (ratio > 1) ratio = 1;
 
+        int barRadius = style.getBorderRadius();
+        int fillRadius = fillStyle.getBorderRadius();
+
         // Track
         int barColor = style.getBackgroundColor();
         if (barColor != 0) {
-            drawContext.fill(x, y, x + width, y + height, barColor);
+            Shapes.fillRoundRect(drawContext, x, y, width, height, barRadius, barColor);
         }
 
         // Fill
         int fillColor = fillStyle.getBackgroundColor();
-        int fillEnd = x + (int) Math.round(ratio * width);
-        if (fillColor != 0 && fillEnd > x) {
-            drawContext.fill(x, y, fillEnd, y + height, fillColor);
+        int fillW = (int) Math.round(ratio * width);
+        if (fillColor != 0 && fillW > 0) {
+            Shapes.fillRoundRect(drawContext, x, y, fillW, height, fillRadius, fillColor);
         }
 
         // Border (on top of fill so it stays visible)
         if (style.getBorderWidth() > 0) {
-            drawBorder(drawContext);
+            Shapes.drawRoundRectBorder(drawContext, x, y, width, height,
+                    barRadius, style.getBorderWidth(), style.getBorderColor());
         }
 
         // Label
@@ -109,15 +114,6 @@ public class ProgressBarComponent extends UIComponent {
                 drawContext.drawText(tr, label, labelX, labelY, style.getTextColor(), false);
             }
         }
-    }
-
-    private void drawBorder(DrawContext drawContext) {
-        int bw = style.getBorderWidth();
-        int c = style.getBorderColor();
-        drawContext.fill(x, y, x + width, y + bw, c);
-        drawContext.fill(x, y + height - bw, x + width, y + height, c);
-        drawContext.fill(x, y, x + bw, y + height, c);
-        drawContext.fill(x + width - bw, y, x + width, y + height, c);
     }
 
     /**
