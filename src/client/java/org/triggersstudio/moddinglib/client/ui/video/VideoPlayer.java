@@ -94,6 +94,12 @@ public final class VideoPlayer implements AutoCloseable {
     /** Seek command from any thread → consumed by decoder thread. */
     private volatile boolean seekRequested = false;
     private volatile long seekTargetMicros = 0L;
+    /** PTS in nanoseconds of the most recently published video frame.
+     *  Used by {@link #currentTimeSeconds()} as the canonical "where am I"
+     *  reference — more reliable than the audio/wall master clock right
+     *  after a seek-while-paused, where the audio clock has been reset and
+     *  the wall clock has just been zeroed. */
+    private volatile long lastPublishedPtsNanos = 0L;
 
     private VideoPlayer(String source, AVFormatContext formatCtx, int videoStreamIdx,
                         AVCodecContext videoCodecCtx, SwsContext swsCtx,
@@ -283,11 +289,18 @@ public final class VideoPlayer implements AutoCloseable {
 
     /**
      * Current playback position in seconds along the source timeline.
-     * Driven by the audio clock when audio is playing, wall-clock fallback
-     * otherwise. Returns 0 before the first frame has been displayed.
+     *
+     * <p>Returns the audio playback time when audio is actually running
+     * (smooth, sub-frame precision); otherwise the PTS of the last
+     * published video frame. The latter is critical right after a seek
+     * — the audio clock has been reset and the wall clock zeroed, but
+     * we know what frame we just decoded, so we report that.
      */
     public double currentTimeSeconds() {
-        return currentClockNanos() / 1_000_000_000.0;
+        if (audio != null && audio.isClockStarted() && !paused) {
+            return audio.audioClockNanos() / 1_000_000_000.0;
+        }
+        return lastPublishedPtsNanos / 1_000_000_000.0;
     }
 
     /**
@@ -487,6 +500,11 @@ public final class VideoPlayer implements AutoCloseable {
         startNanos = -1L;
         pauseAccumNanos = 0L;
         pausedAtNanos = paused ? System.nanoTime() : -1L;
+        // Seed the position with the seek target so currentTimeSeconds()
+        // reads correctly even before the next frame actually publishes
+        // (without this, a fast user retap of "+5s" would compute against
+        // a stale audio clock or a freshly-zeroed wall clock).
+        lastPublishedPtsNanos = targetMicros * 1_000L;
 
         // If we land here while paused, the main decode loop is going to
         // skip every read (paused branch) so the on-screen frame stays at
@@ -520,8 +538,12 @@ public final class VideoPlayer implements AutoCloseable {
                         sws_scale(swsCtx,
                                 decodedFrame.data(), decodedFrame.linesize(), 0, height,
                                 rgbFrame.data(), rgbFrame.linesize());
+                        long pts = decodedFrame.best_effort_timestamp();
+                        long ptsNanos = (pts == AV_NOPTS_VALUE) ? 0L
+                                : (long) (pts * timeBase * 1_000_000_000.0);
                         synchronized (frameLock) {
                             frameVersion.incrementAndGet();
+                            if (ptsNanos != 0) lastPublishedPtsNanos = ptsNanos;
                         }
                         av_frame_unref(decodedFrame);
                         return;
@@ -577,6 +599,7 @@ public final class VideoPlayer implements AutoCloseable {
 
             synchronized (frameLock) {
                 frameVersion.incrementAndGet();
+                if (frameTargetNanos != 0) lastPublishedPtsNanos = frameTargetNanos;
             }
             av_frame_unref(decodedFrame);
         }
