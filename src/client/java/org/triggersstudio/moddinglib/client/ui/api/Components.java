@@ -818,8 +818,19 @@ public class Components {
 
     // ===== Video =====
     //
-    // Phase-1 video player (no audio). Pass an already-opened VideoPlayer or
-    // use the URL overload which opens one and lets the component own it.
+    // Phase-1 video player (no audio). Two construction modes:
+    //
+    // 1) URL overloads — opens VideoPlayer asynchronously on a daemon thread
+    //    so the screen stays responsive during the I/O phase. Renders a
+    //    Skeleton placeholder while loading, an error label on failure, and
+    //    the actual video once the open succeeds. The component owns the
+    //    player and disposes it on detach (including in-flight loads).
+    //
+    // 2) VideoPlayer overloads — caller has already opened the player
+    //    (synchronously or async) and passes it in. Useful for sharing one
+    //    player across multiple components, or pre-warming on a loading
+    //    screen. Pass ownsPlayer=true to delegate disposal to the component.
+    //
     // Source can be any URL FFmpeg understands (file path, http://, rtsp://,
     // live streams, etc.).
 
@@ -828,9 +839,91 @@ public class Components {
     }
 
     public static UIComponent Video(String url, Style style) {
-        return new VideoComponent(
-                org.triggersstudio.moddinglib.client.ui.video.VideoPlayer.open(url),
-                style, true);
+        org.triggersstudio.moddinglib.client.ui.state.State<
+                org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus> status =
+                org.triggersstudio.moddinglib.client.ui.state.State.of(
+                        org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.loading());
+        java.util.concurrent.atomic.AtomicBoolean disposed = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+        Thread loader = new Thread(() -> {
+            org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player = null;
+            Throwable err = null;
+            try {
+                player = org.triggersstudio.moddinglib.client.ui.video.VideoPlayer.open(url);
+            } catch (Throwable t) {
+                err = t;
+            }
+            org.triggersstudio.moddinglib.client.ui.video.VideoPlayer finalPlayer = player;
+            Throwable finalErr = err;
+            net.minecraft.client.MinecraftClient.getInstance().execute(() -> {
+                if (disposed.get()) {
+                    if (finalPlayer != null) finalPlayer.close();
+                    return;
+                }
+                if (finalErr != null) {
+                    String msg = finalErr.getMessage();
+                    status.set(org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.error(
+                            msg != null ? msg : finalErr.getClass().getSimpleName()));
+                } else {
+                    status.set(org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.ready(finalPlayer));
+                }
+            });
+        }, "moddinglib-video-opener");
+        loader.setDaemon(true);
+        loader.start();
+
+        UIComponent dyn = Dynamic(status, s -> renderVideoStatus(s, style));
+        return new AsyncVideoWrapper(dyn, disposed);
+    }
+
+    private static UIComponent renderVideoStatus(
+            org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus s, Style style) {
+        int w = positiveOr(style.getWidth(), 320);
+        int h = positiveOr(style.getHeight(), 180);
+        switch (s.state) {
+            case LOADING:
+                return Skeleton(w, h);
+            case ERROR:
+                return Column(
+                        Style.backgroundColor(0xFF_22_22_22)
+                                .border(0xFF_88_2A_2A, 1).borderRadius(2)
+                                .padding(8).width(w).height(h).build(),
+                        Text("Video failed:",
+                                Style.textColor(0xFF_FF_55_55).fontSize(11).bold().build()),
+                        Text(s.error != null ? s.error : "(unknown)",
+                                Style.textColor(0xFF_AA_AA_AA).fontSize(10)
+                                        .margin(4, 0, 0, 0).build())
+                );
+            case READY:
+            default:
+                return new VideoComponent(s.player, style, true);
+        }
+    }
+
+    private static int positiveOr(int v, int fallback) {
+        return v > 0 ? v : fallback;
+    }
+
+    /**
+     * Tiny lifecycle bridge: forwards detach to its child, AND flips the
+     * shared {@code disposed} flag so any still-pending video opener thread
+     * knows to dispose the player once it eventually resolves.
+     */
+    private static final class AsyncVideoWrapper extends org.triggersstudio.moddinglib.client.ui.components.Container {
+        private final java.util.concurrent.atomic.AtomicBoolean disposed;
+
+        AsyncVideoWrapper(UIComponent child, java.util.concurrent.atomic.AtomicBoolean disposed) {
+            super(Style.DEFAULT,
+                    org.triggersstudio.moddinglib.client.ui.layout.LayoutType.VERTICAL, 0);
+            this.disposed = disposed;
+            addChild(child);
+        }
+
+        @Override
+        public void onDetach() {
+            disposed.set(true);
+            super.onDetach();
+        }
     }
 
     public static UIComponent Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player) {
