@@ -86,10 +86,12 @@ public final class VideoPlayer implements AutoCloseable {
     private long pausedAtNanos = -1L;
     private long pauseAccumNanos = 0L;
 
+    private AudioStream audio; // nullable — sources without audio still play
+
     private VideoPlayer(String source, AVFormatContext formatCtx, int videoStreamIdx,
                         AVCodecContext videoCodecCtx, SwsContext swsCtx,
                         AVFrame decodedFrame, AVFrame rgbFrame, AVPacket packet,
-                        BytePointer rgbBuffer, double timeBase) {
+                        BytePointer rgbBuffer, double timeBase, AudioStream audio) {
         this.source = source;
         this.formatCtx = formatCtx;
         this.videoStreamIdx = videoStreamIdx;
@@ -104,6 +106,7 @@ public final class VideoPlayer implements AutoCloseable {
         this.timeBase = timeBase;
         // BGRA bytes read as little-endian int = ARGB packed.
         this.rgbView = rgbBuffer.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
+        this.audio = audio;
     }
 
     private static final AtomicBoolean NETWORK_INIT_DONE = new AtomicBoolean(false);
@@ -217,8 +220,23 @@ public final class VideoPlayer implements AutoCloseable {
         av_image_fill_arrays(rgbFrame.data(), rgbFrame.linesize(),
                 rgbBuffer, AV_PIX_FMT_BGRA, w, h, 1);
         double timeBase = av_q2d(videoStream.time_base());
+
+        // Optional audio stream — failure to open audio is non-fatal; the
+        // video keeps playing silently. We pick the best audio stream that
+        // shares a program with the chosen video, matching FFmpeg defaults.
+        AudioStream audio = null;
+        int audioIdx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_AUDIO, -1, videoIdx, (AVCodec) null, 0);
+        if (audioIdx >= 0) {
+            try {
+                audio = AudioStream.open(formatCtx.streams(audioIdx), audioIdx);
+            } catch (Throwable t) {
+                // Swallow — better to play silent video than crash the open.
+                audio = null;
+            }
+        }
+
         return new VideoPlayer(source, formatCtx, videoIdx, videoCodecCtx, swsCtx,
-                decodedFrame, rgbFrame, packet, rgbBuffer, timeBase);
+                decodedFrame, rgbFrame, packet, rgbBuffer, timeBase, audio);
     }
 
     public String getSource() { return source; }
@@ -228,6 +246,33 @@ public final class VideoPlayer implements AutoCloseable {
     public boolean isEnded() { return ended.get(); }
     public boolean isRunning() { return running.get(); }
     public long frameVersion() { return frameVersion.get(); }
+    public boolean hasAudio() { return audio != null; }
+
+    /**
+     * Render-thread tick. Currently used to drive the audio pump (push
+     * decoded PCM into the OpenAL queue). The {@link VideoComponent} calls
+     * this once per render frame.
+     */
+    public void pumpRenderTick() {
+        if (audio != null) audio.pump();
+    }
+
+    /** Linear gain in [0, 1]. No-op on sources without audio. */
+    public void setVolume(float v) {
+        if (audio != null) audio.setVolume(v);
+    }
+
+    public float volume() {
+        return audio != null ? audio.volume() : 0f;
+    }
+
+    public void setMuted(boolean muted) {
+        if (audio != null) audio.setMuted(muted);
+    }
+
+    public boolean muted() {
+        return audio != null && audio.muted();
+    }
 
     /**
      * Start (or resume) playback. Idempotent: calling on an already-running
@@ -242,6 +287,7 @@ public final class VideoPlayer implements AutoCloseable {
                     pauseAccumNanos += System.nanoTime() - pausedAtNanos;
                     pausedAtNanos = -1L;
                 }
+                if (audio != null) audio.resume();
             }
             return;
         }
@@ -257,6 +303,7 @@ public final class VideoPlayer implements AutoCloseable {
         if (!paused) {
             paused = true;
             pausedAtNanos = System.nanoTime();
+            if (audio != null) audio.pause();
         }
     }
 
@@ -318,6 +365,8 @@ public final class VideoPlayer implements AutoCloseable {
                     if (avcodec_send_packet(videoCodecCtx, packet) >= 0) {
                         drainDecoder();
                     }
+                } else if (audio != null && packet.stream_index() == audio.streamIndex()) {
+                    audio.processPacket(packet);
                 }
                 av_packet_unref(packet);
             }
@@ -378,6 +427,9 @@ public final class VideoPlayer implements AutoCloseable {
             try { decoderThread.join(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
             decoderThread = null;
         }
+        // Audio first — its codec context lives off the format context, but
+        // it has its own AL state independent of the format demuxer.
+        if (audio != null)         { audio.close(); audio = null; }
         if (packet != null)        { av_packet_free(packet); packet = null; }
         if (decodedFrame != null)  { av_frame_free(decodedFrame); decodedFrame = null; }
         if (rgbFrame != null)      { av_frame_free(rgbFrame); rgbFrame = null; }

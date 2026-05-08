@@ -94,6 +94,11 @@ public class VideoComponent extends UIComponent {
 
     @Override
     public void render(DrawContext ctx) {
+        // Drive the audio pump once per render frame so AL buffer recycling
+        // and the queue refill happen on the render thread (where Minecraft's
+        // OpenAL context is current). No-op for sources without audio.
+        player.pumpRenderTick();
+
         long latestVersion = player.frameVersion();
         if (latestVersion > 0 && latestVersion != uploadedFrameVersion) {
             ensureTexture();
@@ -106,11 +111,18 @@ public class VideoComponent extends UIComponent {
         }
 
         if (textureId != null) {
-            // Stretch to component bounds. The native source dims are passed
-            // as texW/texH so DrawContext computes correct UVs.
+            // 12-arg drawTexture so the whole video is sampled (regionW/H =
+            // full texture dims) and stretched into the component bounds
+            // (width/height = on-screen rect). The 10-arg overload assumes
+            // regionW=width / regionH=height (1:1 pixels) and would crop.
+            int texW = player.getWidth();
+            int texH = player.getHeight();
             ctx.drawTexture(RenderLayer::getGuiTextured, textureId,
-                    x, y, 0f, 0f, width, height,
-                    player.getWidth(), player.getHeight());
+                    x, y,
+                    0f, 0f,
+                    width, height,
+                    texW, texH,
+                    texW, texH);
         } else if (style.getBackgroundColor() != 0) {
             // Show background while waiting for the first decoded frame.
             ctx.fill(x, y, x + width, y + height, style.getBackgroundColor());
