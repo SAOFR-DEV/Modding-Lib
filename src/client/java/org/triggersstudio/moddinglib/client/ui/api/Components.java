@@ -835,10 +835,29 @@ public class Components {
     // live streams, etc.).
 
     public static UIComponent Video(String url) {
-        return Video(url, Style.DEFAULT);
+        return Video(url, Style.DEFAULT, false, p -> {});
     }
 
     public static UIComponent Video(String url, Style style) {
+        return Video(url, style, false, p -> {});
+    }
+
+    public static UIComponent Video(String url, Style style, boolean loop) {
+        return Video(url, style, loop, p -> {});
+    }
+
+    /**
+     * Async video factory with a hook to grab the underlying
+     * {@link org.triggersstudio.moddinglib.client.ui.video.VideoPlayer}
+     * once the open succeeds — useful to call {@code setVolume / seek /
+     * setLoop} from the screen, store the handle for a custom UI, etc.
+     * The callback runs on the render thread.
+     *
+     * <p>If the load fails the callback is not invoked. The component
+     * still renders an inline error inside the same bounds.
+     */
+    public static UIComponent Video(String url, Style style, boolean loop,
+                                    Consumer<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> onReady) {
         org.triggersstudio.moddinglib.client.ui.state.State<
                 org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus> status =
                 org.triggersstudio.moddinglib.client.ui.state.State.of(
@@ -865,6 +884,11 @@ public class Components {
                     status.set(org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.error(
                             msg != null ? msg : finalErr.getClass().getSimpleName()));
                 } else {
+                    finalPlayer.setLoop(loop);
+                    if (onReady != null) {
+                        try { onReady.accept(finalPlayer); }
+                        catch (Throwable ignored) { /* user callback shouldn't break loading */ }
+                    }
                     status.set(org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.ready(finalPlayer));
                 }
             });

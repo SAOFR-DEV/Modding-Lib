@@ -356,14 +356,18 @@ public class ExampleScreens {
      * actual video. On failure an inline error replaces the skeleton.
      */
     public static UIScreen createVideoScreen() {
-        // Replace this with a real source on your machine to test.
         final String SAMPLE_URL = System.getProperty("moddinglib.sampleVideo",
                 "https://www.w3schools.com/tags/mov_bbb.mp4");
+
+        // Hold the player handle so the buttons below can call seek/setLoop.
+        java.util.concurrent.atomic.AtomicReference<
+                org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> playerRef =
+                new java.util.concurrent.atomic.AtomicReference<>();
 
         UIComponent content = Components.Column(
                 padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
                 Components.Text(
-                        "Video Demo (phase 1 — no audio)",
+                        "Video Demo (loop + seek)",
                         fontSize(20).textColor(WHITE).bold().build()
                 ),
                 Components.Text(
@@ -374,11 +378,36 @@ public class ExampleScreens {
                         SAMPLE_URL,
                         backgroundColor(0xFF_00_00_00)
                                 .width(480).height(270)
-                                .border(0xFF_44_44_44, 1).borderRadius(4).build()
+                                .border(0xFF_44_44_44, 1).borderRadius(4).build(),
+                        true, // loop on EOF
+                        playerRef::set
                 ),
+                Components.Row(row -> {
+                    row.Button("⏮ Restart",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(22).width(90).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p != null) p.seek(0);
+                                    }).build());
+                    row.Button("⏭ +5s",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(22).width(70).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p != null) p.seek(5.0);
+                                    }).build());
+                    row.Button("Mute",
+                            backgroundColor(0xFF_88_2A_2A).textColor(WHITE)
+                                    .height(22).width(60).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p != null) p.setMuted(!p.muted());
+                                    }).build());
+                }),
                 Components.Text(
-                        "Pause/resume needs wiring in via the player handle — coming with audio in phase 2.",
-                        fontSize(9).textColor(0xFF_77_77_77).margin(12, 0, 0, 0).build()
+                        "Loop = on. Click Restart to seek to 0, +5s to jump to 5s, Mute to toggle audio.",
+                        fontSize(9).textColor(0xFF_77_77_77).margin(8, 0, 0, 0).build()
                 )
         );
 

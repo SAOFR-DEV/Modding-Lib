@@ -101,6 +101,9 @@ public final class AudioStream implements AutoCloseable {
     /** Tracks PTS for chunks whose AVFrame had AV_NOPTS_VALUE. */
     private long pendingNextStartPtsNanos = 0L;
 
+    /** Set by the decoder thread on seek/loop; consumed on next {@link #pump()}. */
+    private volatile boolean resetRequested = false;
+
     private float volume = 1.0f;
     private boolean muted = false;
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -240,6 +243,27 @@ public final class AudioStream implements AutoCloseable {
             }
         }
 
+        // Seek/loop drain: stop the source, recycle every queued buffer back
+        // to the free pool, drop in-flight PTS bookkeeping, and reset the
+        // clock. Decoder will refeed pendingChunks shortly with new PTS.
+        if (resetRequested) {
+            resetRequested = false;
+            try {
+                AL10.alSourceStop(alSource);
+                int queued = AL10.alGetSourcei(alSource, AL10.AL_BUFFERS_QUEUED);
+                for (int i = 0; i < queued; i++) {
+                    int bufId = AL10.alSourceUnqueueBuffers(alSource);
+                    freeAlBuffers.addLast(bufId);
+                }
+            } catch (Throwable ignored) {
+                // AL teardown — leave state alone.
+            }
+            alQueue.clear();
+            clockStarted = false;
+            lastClockNanos = 0L;
+            lastClockSampleAtNanos = System.nanoTime();
+        }
+
         // Recycle buffers AL has finished playing.
         int processed = AL10.alGetSourcei(alSource, AL10.AL_BUFFERS_PROCESSED);
         for (int i = 0; i < processed; i++) {
@@ -291,6 +315,24 @@ public final class AudioStream implements AutoCloseable {
         AL10.alSourcef(alSource, AL10.AL_GAIN, muted ? 0f : volume);
         AL10.alSourcei(alSource, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE); // 2D, ignore listener position
         alInitialized = true;
+    }
+
+    /**
+     * Called from the decoder thread after a seek/loop. Drops every PCM
+     * chunk still pending and asks the next {@link #pump()} to drain AL
+     * + reset the clock. Audio will resume as fresh chunks arrive.
+     */
+    public void requestReset() {
+        pendingChunks.clear();
+        pendingNextStartPtsNanos = 0L;
+        resetRequested = true;
+    }
+
+    /** Flush the audio decoder's internal buffer (post-seek). */
+    public void flushCodec() {
+        if (codecCtx != null) {
+            avcodec_flush_buffers(codecCtx);
+        }
     }
 
     /**

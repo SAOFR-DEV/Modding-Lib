@@ -388,6 +388,13 @@ public class ContainerScope {
     public void Video(String url, Style style) {
         children.add(Components.Video(url, style));
     }
+    public void Video(String url, Style style, boolean loop) {
+        children.add(Components.Video(url, style, loop));
+    }
+    public void Video(String url, Style style, boolean loop,
+                      Consumer<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> onReady) {
+        children.add(Components.Video(url, style, loop, onReady));
+    }
     public void Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player) {
         children.add(Components.Video(player));
     }

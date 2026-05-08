@@ -88,6 +88,12 @@ public final class VideoPlayer implements AutoCloseable {
 
     private AudioStream audio; // nullable — sources without audio still play
 
+    /** When true, decoder rewinds to start on EOF instead of ending. */
+    private volatile boolean loop = false;
+    /** Seek command from any thread → consumed by decoder thread. */
+    private volatile boolean seekRequested = false;
+    private volatile long seekTargetMicros = 0L;
+
     private VideoPlayer(String source, AVFormatContext formatCtx, int videoStreamIdx,
                         AVCodecContext videoCodecCtx, SwsContext swsCtx,
                         AVFrame decodedFrame, AVFrame rgbFrame, AVPacket packet,
@@ -275,6 +281,36 @@ public final class VideoPlayer implements AutoCloseable {
     }
 
     /**
+     * When true, the decoder rewinds to time 0 on EOF instead of stopping.
+     * Has no effect on live sources (av_seek_frame fails). Switch on/off
+     * at any time — the next EOF respects the current value.
+     */
+    public void setLoop(boolean loop) {
+        this.loop = loop;
+    }
+
+    public boolean isLooping() {
+        return loop;
+    }
+
+    /**
+     * Seek to {@code seconds} in the source timeline. Thread-safe — the
+     * decoder thread performs the actual {@code av_seek_frame} on its next
+     * read iteration, then flushes both codec contexts and (if present)
+     * resets the audio queue + clock. The video clock anchor is reset so
+     * pacing re-stabilizes around the new position.
+     *
+     * <p>Negative values are clamped to 0. Out-of-range seeks return without
+     * crashing; FFmpeg simply rejects the seek.
+     */
+    public void seek(double seconds) {
+        if (closed.get()) return;
+        seekTargetMicros = Math.max(0L, (long) (seconds * 1_000_000.0));
+        seekRequested = true;
+        ended.set(false);
+    }
+
+    /**
      * Start (or resume) playback. Idempotent: calling on an already-running
      * tween just clears any pause flag and resumes.
      */
@@ -350,14 +386,24 @@ public final class VideoPlayer implements AutoCloseable {
     private void decodeLoop() {
         try {
             while (running.get()) {
+                if (seekRequested) {
+                    seekRequested = false;
+                    doSeek(seekTargetMicros);
+                }
                 if (paused) {
                     Thread.sleep(15);
                     continue;
                 }
                 int rd = av_read_frame(formatCtx, packet);
                 if (rd < 0) {
+                    // Drain decoders so the last frames render, then either
+                    // loop-rewind or signal EOF.
                     avcodec_send_packet(videoCodecCtx, (AVPacket) null);
                     drainDecoder();
+                    if (loop) {
+                        doSeek(0L);
+                        continue;
+                    }
                     ended.set(true);
                     break;
                 }
@@ -377,6 +423,27 @@ public final class VideoPlayer implements AutoCloseable {
         } finally {
             running.set(false);
         }
+    }
+
+    /**
+     * Run on the decoder thread. {@code av_seek_frame} with stream_index=-1
+     * uses the AV_TIME_BASE_Q scale (microseconds), which matches what we
+     * pass in here. AVSEEK_FLAG_BACKWARD seeks to the keyframe at or before
+     * the requested time so decoders have something coherent to start from.
+     */
+    private void doSeek(long targetMicros) {
+        int rc = av_seek_frame(formatCtx, -1, targetMicros, AVSEEK_FLAG_BACKWARD);
+        if (rc < 0) return;
+        avcodec_flush_buffers(videoCodecCtx);
+        if (audio != null) {
+            audio.flushCodec();
+            audio.requestReset();
+        }
+        // Clock anchors: forget the wall-clock baseline so the fallback
+        // re-zeroes itself, and reset accumulated pause time.
+        startNanos = -1L;
+        pauseAccumNanos = 0L;
+        pausedAtNanos = paused ? System.nanoTime() : -1L;
     }
 
     private void drainDecoder() throws InterruptedException {
