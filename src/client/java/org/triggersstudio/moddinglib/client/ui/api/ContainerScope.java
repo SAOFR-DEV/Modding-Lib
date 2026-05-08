@@ -167,6 +167,10 @@ public class ContainerScope {
     public void SliderInt(State<Integer> state, int min, int max, int step, Style barStyle, Style thumbStyle, Style trackStyle) {
         children.add(Components.SliderInt(state, min, max, step, barStyle, thumbStyle, trackStyle));
     }
+    public void SliderInt(State<Integer> state, int min, int max, int step, Style barStyle, Style thumbStyle, Style trackStyle,
+                          org.triggersstudio.moddinglib.client.ui.components.SliderComponent.Orientation orientation) {
+        children.add(Components.SliderInt(state, min, max, step, barStyle, thumbStyle, trackStyle, orientation));
+    }
 
     // --- Slider Double ---
     public void SliderDouble(State<Double> state, double min, double max) {
@@ -180,6 +184,10 @@ public class ContainerScope {
     }
     public void SliderDouble(State<Double> state, double min, double max, double step, Style barStyle, Style thumbStyle, Style trackStyle) {
         children.add(Components.SliderDouble(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+    public void SliderDouble(State<Double> state, double min, double max, double step, Style barStyle, Style thumbStyle, Style trackStyle,
+                             org.triggersstudio.moddinglib.client.ui.components.SliderComponent.Orientation orientation) {
+        children.add(Components.SliderDouble(state, min, max, step, barStyle, thumbStyle, trackStyle, orientation));
     }
 
     // --- Slider Float ---
@@ -195,6 +203,10 @@ public class ContainerScope {
     public void SliderFloat(State<Float> state, float min, float max, float step, Style barStyle, Style thumbStyle, Style trackStyle) {
         children.add(Components.SliderFloat(state, min, max, step, barStyle, thumbStyle, trackStyle));
     }
+    public void SliderFloat(State<Float> state, float min, float max, float step, Style barStyle, Style thumbStyle, Style trackStyle,
+                            org.triggersstudio.moddinglib.client.ui.components.SliderComponent.Orientation orientation) {
+        children.add(Components.SliderFloat(state, min, max, step, barStyle, thumbStyle, trackStyle, orientation));
+    }
 
     // --- Slider Long ---
     public void SliderLong(State<Long> state, long min, long max) {
@@ -209,6 +221,10 @@ public class ContainerScope {
     public void SliderLong(State<Long> state, long min, long max, long step, Style barStyle, Style thumbStyle, Style trackStyle) {
         children.add(Components.SliderLong(state, min, max, step, barStyle, thumbStyle, trackStyle));
     }
+    public void SliderLong(State<Long> state, long min, long max, long step, Style barStyle, Style thumbStyle, Style trackStyle,
+                           org.triggersstudio.moddinglib.client.ui.components.SliderComponent.Orientation orientation) {
+        children.add(Components.SliderLong(state, min, max, step, barStyle, thumbStyle, trackStyle, orientation));
+    }
 
     // --- Slider Short ---
     public void SliderShort(State<Short> state, short min, short max) {
@@ -222,6 +238,10 @@ public class ContainerScope {
     }
     public void SliderShort(State<Short> state, short min, short max, short step, Style barStyle, Style thumbStyle, Style trackStyle) {
         children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle));
+    }
+    public void SliderShort(State<Short> state, short min, short max, short step, Style barStyle, Style thumbStyle, Style trackStyle,
+                            org.triggersstudio.moddinglib.client.ui.components.SliderComponent.Orientation orientation) {
+        children.add(Components.SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle, orientation));
     }
 
     // --- Animation ---

@@ -108,6 +108,7 @@ public class ExampleScreens {
     public static UIScreen createSliderScreen() {
         State<Integer> volume = State.of(50, "demo.slider.volume");
         State<Double> pitch = State.of(1.0, "demo.slider.pitch");
+        State<Integer> level = State.of(40, "demo.slider.level");
 
         UIComponent content = Components.Column(
                 padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
@@ -117,10 +118,15 @@ public class ExampleScreens {
                         fontSize(20).textColor(WHITE).bold().build()
                 ),
 
+                Components.Text(
+                        "Click a slider, then use ←/→ Home/End PageUp/Down. Hover the thumb.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 8, 0).build()
+                ),
+
                 // Int slider with default styles (track derived from fill)
                 Components.Text(
                         volume.map(v -> "Volume: " + v),
-                        fontSize(12).textColor(0xFF_AA_AA_AA).margin(12, 0, 4, 0).build()
+                        fontSize(12).textColor(0xFF_AA_AA_AA).margin(8, 0, 4, 0).build()
                 ),
                 Components.SliderInt(volume, 0, 100, 1),
 
@@ -133,6 +139,18 @@ public class ExampleScreens {
                         backgroundColor(0xFF_FF_88_55).width(240).height(6).build(),
                         backgroundColor(WHITE).width(10).height(20).build(),
                         backgroundColor(0xFF_33_33_33).build()
+                ),
+
+                // Vertical slider — bind the same int state shape, ↑/↓ on focus.
+                Components.Text(
+                        level.map(v -> "Vertical level: " + v),
+                        fontSize(12).textColor(0xFF_AA_AA_AA).margin(20, 0, 4, 0).build()
+                ),
+                Components.SliderInt(level, 0, 100, 1,
+                        backgroundColor(0xFF_55_DD_88).width(6).height(120).build(),
+                        backgroundColor(WHITE).width(20).height(8).build(),
+                        backgroundColor(0xFF_33_33_33).build(),
+                        org.triggersstudio.moddinglib.client.ui.components.SliderComponent.Orientation.VERTICAL
                 )
         );
 
