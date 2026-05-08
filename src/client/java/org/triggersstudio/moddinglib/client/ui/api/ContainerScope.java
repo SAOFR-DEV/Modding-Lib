@@ -115,6 +115,20 @@ public class ContainerScope {
         children.add(Components.TextField(state, placeholder, style, onSubmit));
     }
 
+    // --- Text Area ---
+    public void TextArea(State<String> state) {
+        children.add(Components.TextArea(state));
+    }
+    public void TextArea(State<String> state, String placeholder, Style style) {
+        children.add(Components.TextArea(state, placeholder, style));
+    }
+    public void TextArea(State<String> state, String placeholder, Style style, int maxLength) {
+        children.add(Components.TextArea(state, placeholder, style, maxLength));
+    }
+    public void TextArea(State<String> state, String placeholder, Style style, int maxLength, int tabSpaces) {
+        children.add(Components.TextArea(state, placeholder, style, maxLength, tabSpaces));
+    }
+
     // --- Dynamic ---
     public <T> void Dynamic(State<T> state, Function<T, UIComponent> builder) {
         children.add(Components.Dynamic(state, builder));

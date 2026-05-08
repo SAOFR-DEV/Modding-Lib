@@ -79,7 +79,7 @@ The compiled JAR files will be available in the `build/libs/` directory.
   >  - [ ] Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
 - [ ] Add player render for UIs
 - [x] Add text input for UIs
-  > - [ ] Add text area for UIs multi-lign, filter/max length, Tab cycle focus
+  > - [x] Add text area for UIs multi-lign, filter/max length, Tab cycle focus
   > - [x] Add onSubmit Enter
   > - [x] Add blink du caret
 - [x] Add combo box for UIs

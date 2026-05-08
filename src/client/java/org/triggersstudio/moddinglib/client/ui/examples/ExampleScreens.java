@@ -349,6 +349,54 @@ public class ExampleScreens {
     }
 
     /**
+     * TextArea demo: a multi-line editor bound to a {@code State<String>}.
+     * Optional max length is set to 500. Tab inserts 4 spaces. Live readouts
+     * below show the current line count and character total.
+     */
+    public static UIScreen createTextAreaScreen() {
+        State<String> doc = State.of(
+                "TextArea demo.\n\nType freely — use arrows, Home/End, Ctrl+Home/End,\n" +
+                "PageUp/Down, Enter for newline, Tab for 4 spaces.\n" +
+                "Selection: drag or shift+arrows. Copy/paste handles\n" +
+                "multi-line content.",
+                "demo.textarea.doc");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "TextArea Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        doc.map(s -> {
+                            int lines = 1;
+                            for (int i = 0; i < s.length(); i++) if (s.charAt(i) == '\n') lines++;
+                            return lines + " line" + (lines == 1 ? "" : "s") + " · "
+                                    + s.length() + " char" + (s.length() == 1 ? "" : "s")
+                                    + " (max 500)";
+                        }),
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 8, 0).build()
+                ),
+
+                Components.TextArea(
+                        doc,
+                        "Start typing...",
+                        backgroundColor(0xFF_22_22_22)
+                                .textColor(WHITE)
+                                .width(420).height(160)
+                                .padding(6, 8)
+                                .border(0xFF_44_44_44, 1)
+                                .build(),
+                        500
+                )
+        );
+
+        return Components.Screen(content, "TextArea Demo");
+    }
+
+    /**
      * Spring animation demo: four labels each driven by a different preset
      * Spring, retargeted via two buttons. Click "Send" to push the springs
      * to 200, "Reset" to send them back to 0 — Springs continue smoothly
