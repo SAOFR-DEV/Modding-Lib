@@ -331,6 +331,77 @@ public class ExampleScreens {
     }
 
     /**
+     * Advanced animation demo: showcases looping, yoyo, ColorTween, and the
+     * onComplete callback. Independent from {@link #createAnimationScreen}
+     * which covers the entrance-style one-shots.
+     */
+    public static UIScreen createAnimationAdvancedScreen() {
+        State<String> completionLog = State.of("(none yet)", "demo.animation.completion");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Animation — Loop / Yoyo / ColorTween / onComplete",
+                        fontSize(18).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Looping yoyo: bounces 0 → 20 → 0 forever",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(12, 0, 4, 0).build()
+                ),
+                Components.Animated(
+                                Components.Text(
+                                        "↕ bouncing dot",
+                                        fontSize(11).textColor(0xFF_DD_DD_DD).build()))
+                        .translateY(org.triggersstudio.moddinglib.client.ui.animation.Tween
+                                .from(0.0).to(20.0).durationMs(700)
+                                .easing(org.triggersstudio.moddinglib.client.ui.animation.Easing.IN_OUT_QUAD)
+                                .yoyo()
+                                .play())
+                        .build(),
+
+                Components.Text(
+                        "ColorTween yoyo background:",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(12, 0, 4, 0).build()
+                ),
+                Components.Animated(
+                                Components.Text(
+                                        "  Pulsing label  ",
+                                        fontSize(12).textColor(WHITE).padding(4, 8).build()))
+                        .backgroundColor(org.triggersstudio.moddinglib.client.ui.animation.ColorTween
+                                .from(0xFF_2A_5C_88).to(0xFF_88_2A_5C).durationMs(1500)
+                                .easing(org.triggersstudio.moddinglib.client.ui.animation.Easing.IN_OUT_SINE)
+                                .yoyo()
+                                .play())
+                        .build(),
+
+                Components.Text(
+                        "onComplete (fires once 1500ms after open):",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(12, 0, 4, 0).build()
+                ),
+                Components.Animated(
+                                Components.Text(
+                                        "fading title",
+                                        fontSize(12).textColor(WHITE).bold().build()))
+                        .opacity(org.triggersstudio.moddinglib.client.ui.animation.Tween
+                                .from(0.0).to(1.0).durationMs(1500)
+                                .easing(org.triggersstudio.moddinglib.client.ui.animation.Easing.OUT_CUBIC)
+                                .onComplete(() -> completionLog.set(
+                                        "fired at " + java.time.LocalTime.now().withNano(0)))
+                                .play())
+                        .build(),
+
+                Components.Text(
+                        completionLog.map(s -> "Last completion: " + s),
+                        fontSize(10).textColor(0xFF_88_DD_88).margin(8, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "Animation Advanced Demo");
+    }
+
+    /**
      * Create a screen demonstrating the Calendar component bound to a
      * {@code State<LocalDate>}. Click a day to select it; use the arrows to
      * pan months. A reactive Text shows the chosen date.

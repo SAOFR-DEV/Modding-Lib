@@ -496,6 +496,7 @@ public class Components {
         private DoubleSupplier translateX;
         private DoubleSupplier translateY;
         private DoubleSupplier scale;
+        private java.util.function.IntSupplier backgroundColor;
 
         AnimatedBuilder(UIComponent child) {
             if (child == null) throw new IllegalArgumentException("child must not be null");
@@ -512,8 +513,18 @@ public class Components {
         }
         public AnimatedBuilder scale(DoubleSupplier supplier) { this.scale = supplier; return this; }
 
+        /**
+         * Animated background fill drawn behind the child using the supplied
+         * ARGB on every frame. Pair with a {@link org.triggersstudio.moddinglib.client.ui.animation.ColorTween}
+         * for animated color transitions.
+         */
+        public AnimatedBuilder backgroundColor(java.util.function.IntSupplier supplier) {
+            this.backgroundColor = supplier;
+            return this;
+        }
+
         public UIComponent build() {
-            return new AnimatedComponent(child, opacity, translateX, translateY, scale);
+            return new AnimatedComponent(child, opacity, translateX, translateY, scale, backgroundColor);
         }
     }
 

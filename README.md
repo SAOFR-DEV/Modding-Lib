@@ -68,8 +68,8 @@ The compiled JAR files will be available in the `build/libs/` directory.
 - [x] Add animation support for UIs
   > - [ ] Spring family (default/snappy/bouncy/strong) — needs physics simulation
   > - [ ] Irregular family (light/heavy) — clarify spec
-  > - [ ] Loop / yoyo / onComplete callbacks
-  > - [ ] ColorTween (interpolate ARGB)
+  > - [x] Loop / yoyo / onComplete callbacks
+  > - [x] ColorTween (interpolate ARGB)
 - [ ] Add video components for UIs
 - [x] Add progress bars for UIs
 - [x] Add sliders for UIs
