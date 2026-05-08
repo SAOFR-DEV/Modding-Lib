@@ -349,6 +349,98 @@ public class ExampleScreens {
     }
 
     /**
+     * Spring animation demo: four labels each driven by a different preset
+     * Spring, retargeted via two buttons. Click "Send" to push the springs
+     * to 200, "Reset" to send them back to 0 — Springs continue smoothly
+     * from their current velocity, no restart.
+     */
+    public static UIScreen createSpringScreen() {
+        org.triggersstudio.moddinglib.client.ui.animation.Spring smooth =
+                org.triggersstudio.moddinglib.client.ui.animation.Spring.smooth(0.0);
+        org.triggersstudio.moddinglib.client.ui.animation.Spring snappy =
+                org.triggersstudio.moddinglib.client.ui.animation.Spring.snappy(0.0);
+        org.triggersstudio.moddinglib.client.ui.animation.Spring bouncy =
+                org.triggersstudio.moddinglib.client.ui.animation.Spring.bouncy(0.0);
+        org.triggersstudio.moddinglib.client.ui.animation.Spring strong =
+                org.triggersstudio.moddinglib.client.ui.animation.Spring.strong(0.0);
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Spring Animation Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Click 'Send' to push the labels right, 'Reset' to send them back.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Row(row -> {
+                    row.Button("Send",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(24).width(80).margin(0, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        smooth.target(200.0);
+                                        snappy.target(200.0);
+                                        bouncy.target(200.0);
+                                        strong.target(200.0);
+                                    })
+                                    .build());
+                    row.Button("Reset",
+                            backgroundColor(0xFF_88_2A_2A).textColor(WHITE)
+                                    .height(24).width(80)
+                                    .onClick((mx, my, btn) -> {
+                                        smooth.target(0.0);
+                                        snappy.target(0.0);
+                                        bouncy.target(0.0);
+                                        strong.target(0.0);
+                                    })
+                                    .build());
+                }),
+
+                Components.Text(
+                        "smooth (default — moderate, near-critical):",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(16, 0, 4, 0).build()
+                ),
+                Components.Animated(Components.Text("●",
+                                fontSize(14).textColor(0xFF_55_88_FF).bold().build()))
+                        .translateX(smooth)
+                        .build(),
+
+                Components.Text(
+                        "snappy (high stiffness, no overshoot):",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 4, 0).build()
+                ),
+                Components.Animated(Components.Text("●",
+                                fontSize(14).textColor(0xFF_55_DD_88).bold().build()))
+                        .translateX(snappy)
+                        .build(),
+
+                Components.Text(
+                        "bouncy (under-damped, oscillates):",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 4, 0).build()
+                ),
+                Components.Animated(Components.Text("●",
+                                fontSize(14).textColor(0xFF_FF_88_55).bold().build()))
+                        .translateX(bouncy)
+                        .build(),
+
+                Components.Text(
+                        "strong (very stiff, almost instant):",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 4, 0).build()
+                ),
+                Components.Animated(Components.Text("●",
+                                fontSize(14).textColor(0xFF_DD_55_DD).bold().build()))
+                        .translateX(strong)
+                        .build()
+        );
+
+        return Components.Screen(content, "Spring Demo");
+    }
+
+    /**
      * Advanced animation demo: showcases looping, yoyo, ColorTween, and the
      * onComplete callback. Independent from {@link #createAnimationScreen}
      * which covers the entrance-style one-shots.
