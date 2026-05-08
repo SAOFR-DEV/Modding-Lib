@@ -382,6 +382,31 @@ public class ExampleScreens {
                         true, // loop on EOF
                         playerRef::set
                 ),
+                // Live progress bar — supplier reads playerRef every frame and
+                // tolerates a null player (still loading) or a live stream
+                // (durationSeconds() == +Infinity → 0 ratio, "live" label).
+                Components.ProgressBar(
+                        () -> {
+                            var p = playerRef.get();
+                            if (p == null) return 0.0;
+                            double dur = p.durationSeconds();
+                            if (!Double.isFinite(dur) || dur <= 0) return 0.0;
+                            return p.currentTimeSeconds() / dur;
+                        },
+                        0.0, 1.0,
+                        v -> {
+                            var p = playerRef.get();
+                            if (p == null) return "loading…";
+                            double cur = p.currentTimeSeconds();
+                            double dur = p.durationSeconds();
+                            return formatMmSs(cur) + " / "
+                                    + (Double.isFinite(dur) ? formatMmSs(dur) : "live");
+                        },
+                        backgroundColor(0xFF_22_22_22).textColor(WHITE)
+                                .width(480).height(14).margin(10, 0, 0, 0)
+                                .borderRadius(3).build(),
+                        backgroundColor(0xFF_55_AA_FF).borderRadius(3).build()
+                ),
                 Components.Row(row -> {
                     row.Button("⏮ Restart",
                             backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
@@ -435,6 +460,14 @@ public class ExampleScreens {
         );
 
         return Components.Screen(content, "Video Demo");
+    }
+
+    private static String formatMmSs(double seconds) {
+        if (!Double.isFinite(seconds) || seconds < 0) return "--:--";
+        long total = (long) seconds;
+        long m = total / 60;
+        long s = total % 60;
+        return String.format("%d:%02d", m, s);
     }
 
     /**

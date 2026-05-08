@@ -167,6 +167,22 @@ public class ContainerScope {
                             Style barStyle, Style fillStyle) {
         children.add(Components.ProgressBar(state, min, max, labelFormat, barStyle, fillStyle));
     }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max) {
+        children.add(Components.ProgressBar(reader, min, max));
+    }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max,
+                            DoubleFunction<String> labelFormat) {
+        children.add(Components.ProgressBar(reader, min, max, labelFormat));
+    }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max,
+                            Style barStyle, Style fillStyle) {
+        children.add(Components.ProgressBar(reader, min, max, barStyle, fillStyle));
+    }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max,
+                            DoubleFunction<String> labelFormat,
+                            Style barStyle, Style fillStyle) {
+        children.add(Components.ProgressBar(reader, min, max, labelFormat, barStyle, fillStyle));
+    }
 
     // --- Slider Int ---
     public void SliderInt(State<Integer> state, int min, int max) {

@@ -347,6 +347,33 @@ public class Components {
         return new ProgressBarComponent(barStyle, fillStyle, min, max, state::get, labelFormat);
     }
 
+    /**
+     * Supplier-based ProgressBar — bind to anything that produces a double
+     * each frame (player position, network bytes, framerate, ...). The
+     * supplier is invoked on the render thread, so it's safe to read live
+     * state. Returns 0 / NaN handling via the bar component's clamp logic.
+     */
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max) {
+        return ProgressBar(reader, min, max, ProgressBarComponent.defaultLabelFormat(min, max), null, null);
+    }
+
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max,
+                                          DoubleFunction<String> labelFormat) {
+        return ProgressBar(reader, min, max, labelFormat, null, null);
+    }
+
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max,
+                                          Style barStyle, Style fillStyle) {
+        return ProgressBar(reader, min, max,
+                ProgressBarComponent.defaultLabelFormat(min, max), barStyle, fillStyle);
+    }
+
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max,
+                                          DoubleFunction<String> labelFormat,
+                                          Style barStyle, Style fillStyle) {
+        return new ProgressBarComponent(barStyle, fillStyle, min, max, reader, labelFormat);
+    }
+
     // ===== Slider Components =====
     //
     // All sliders bind bidirectionally to a State<N>: dragging writes to the
