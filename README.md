@@ -73,9 +73,9 @@ The compiled JAR files will be available in the `build/libs/` directory.
 - [ ] Add video components for UIs
 - [x] Add progress bars for UIs
 - [x] Add sliders for UIs
-  >  - [ ] Slider vertical (ajout d'un flag d'orientation).
-  >  - [ ] Support clavier (← → Home End) — nécessite un système de focus.
-  >  - [ ] Hover visuel sur le thumb.
+  >  - [x] Slider vertical (ajout d'un flag d'orientation).
+  >  - [x] Support clavier (← → Home End) — nécessite un système de focus.
+  >  - [x] Hover visuel sur le thumb.
   >  - [ ] Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
 - [ ] Add player render for UIs
 - [x] Add text input for UIs

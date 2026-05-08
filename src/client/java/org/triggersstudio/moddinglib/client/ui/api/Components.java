@@ -327,13 +327,22 @@ public class Components {
     // All sliders bind bidirectionally to a State<N>: dragging writes to the
     // state, external mutation of the state moves the thumb on next frame.
     //
-    // Four overloads per numeric type:
+    // Overloads per numeric type:
     //   (state, min, max)
     //   (state, min, max, step)
     //   (state, min, max, step, barStyle, thumbStyle)                -> track derived from bar
     //   (state, min, max, step, barStyle, thumbStyle, trackStyle)    -> explicit track
+    //   (state, min, max, step, barStyle, thumbStyle, trackStyle, Orientation)
     //
     // Default step is 1 for Int/Long/Short, 0 (continuous) for Double/Float.
+    // Default orientation is HORIZONTAL. For a vertical slider, pass
+    // SliderComponent.Orientation.VERTICAL on the all-args overload (use null
+    // for any style you don't want to override).
+    //
+    // When the slider has keyboard focus (click to focus): ←/→ (horizontal)
+    // or ↑/↓ (vertical) move by step (or 1% of the range when step is 0),
+    // Shift multiplies the increment by 10, Home/End jump to min/max,
+    // PageUp/PageDown move by 10% of the range.
 
     // --- Int ---
 
@@ -352,10 +361,18 @@ public class Components {
 
     public static UIComponent SliderInt(State<Integer> state, int min, int max, int step,
                                         Style barStyle, Style thumbStyle, Style trackStyle) {
+        return SliderInt(state, min, max, step, barStyle, thumbStyle, trackStyle,
+                SliderComponent.Orientation.HORIZONTAL);
+    }
+
+    public static UIComponent SliderInt(State<Integer> state, int min, int max, int step,
+                                        Style barStyle, Style thumbStyle, Style trackStyle,
+                                        SliderComponent.Orientation orientation) {
         return new SliderComponent(barStyle, thumbStyle, trackStyle,
                 min, max, step,
                 () -> (double) state.get(),
-                v -> state.set((int) Math.round(v)));
+                v -> state.set((int) Math.round(v)),
+                orientation);
     }
 
     // --- Double ---
@@ -375,10 +392,18 @@ public class Components {
 
     public static UIComponent SliderDouble(State<Double> state, double min, double max, double step,
                                            Style barStyle, Style thumbStyle, Style trackStyle) {
+        return SliderDouble(state, min, max, step, barStyle, thumbStyle, trackStyle,
+                SliderComponent.Orientation.HORIZONTAL);
+    }
+
+    public static UIComponent SliderDouble(State<Double> state, double min, double max, double step,
+                                           Style barStyle, Style thumbStyle, Style trackStyle,
+                                           SliderComponent.Orientation orientation) {
         return new SliderComponent(barStyle, thumbStyle, trackStyle,
                 min, max, step,
                 state::get,
-                state::set);
+                state::set,
+                orientation);
     }
 
     // --- Float ---
@@ -398,10 +423,18 @@ public class Components {
 
     public static UIComponent SliderFloat(State<Float> state, float min, float max, float step,
                                           Style barStyle, Style thumbStyle, Style trackStyle) {
+        return SliderFloat(state, min, max, step, barStyle, thumbStyle, trackStyle,
+                SliderComponent.Orientation.HORIZONTAL);
+    }
+
+    public static UIComponent SliderFloat(State<Float> state, float min, float max, float step,
+                                          Style barStyle, Style thumbStyle, Style trackStyle,
+                                          SliderComponent.Orientation orientation) {
         return new SliderComponent(barStyle, thumbStyle, trackStyle,
                 min, max, step,
                 () -> (double) state.get(),
-                v -> state.set((float) v));
+                v -> state.set((float) v),
+                orientation);
     }
 
     // --- Long ---
@@ -421,10 +454,18 @@ public class Components {
 
     public static UIComponent SliderLong(State<Long> state, long min, long max, long step,
                                          Style barStyle, Style thumbStyle, Style trackStyle) {
+        return SliderLong(state, min, max, step, barStyle, thumbStyle, trackStyle,
+                SliderComponent.Orientation.HORIZONTAL);
+    }
+
+    public static UIComponent SliderLong(State<Long> state, long min, long max, long step,
+                                         Style barStyle, Style thumbStyle, Style trackStyle,
+                                         SliderComponent.Orientation orientation) {
         return new SliderComponent(barStyle, thumbStyle, trackStyle,
                 (double) min, (double) max, (double) step,
                 () -> (double) state.get(),
-                v -> state.set(Math.round(v)));
+                v -> state.set(Math.round(v)),
+                orientation);
     }
 
     // --- Short ---
@@ -444,10 +485,18 @@ public class Components {
 
     public static UIComponent SliderShort(State<Short> state, short min, short max, short step,
                                           Style barStyle, Style thumbStyle, Style trackStyle) {
+        return SliderShort(state, min, max, step, barStyle, thumbStyle, trackStyle,
+                SliderComponent.Orientation.HORIZONTAL);
+    }
+
+    public static UIComponent SliderShort(State<Short> state, short min, short max, short step,
+                                          Style barStyle, Style thumbStyle, Style trackStyle,
+                                          SliderComponent.Orientation orientation) {
         return new SliderComponent(barStyle, thumbStyle, trackStyle,
                 min, max, step,
                 () -> (double) state.get(),
-                v -> state.set((short) Math.round(v)));
+                v -> state.set((short) Math.round(v)),
+                orientation);
     }
 
     // ===== Animation =====
