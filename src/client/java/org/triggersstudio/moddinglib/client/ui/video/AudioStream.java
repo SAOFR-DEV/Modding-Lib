@@ -39,9 +39,13 @@ import static org.bytedeco.ffmpeg.global.swresample.*;
  *       render thread sidesteps Minecraft's per-thread AL context binding.</li>
  * </ul>
  *
- * <p><b>Sync:</b> not yet — this phase just gets sound out. Video continues
- * to pace against wall-clock (see {@code VideoPlayer.decodeLoop}). Audio
- * clock comes in phase 2.2.
+ * <p><b>Sync (phase 2.2):</b> each PCM chunk produced by {@code processPacket}
+ * carries its source PTS in nanoseconds. When the chunk is queued onto AL
+ * we record an {@link InFlightBuffer}. Each {@link #pump()} reads
+ * {@code AL_SAMPLE_OFFSET} on the head buffer and stamps a snapshot of
+ * "current audio playback time, nanos in source timeline" into a volatile
+ * field that the video decoder thread reads through
+ * {@link #audioClockNanos()} to pace frames.
  */
 public final class AudioStream implements AutoCloseable {
 
@@ -56,7 +60,14 @@ public final class AudioStream implements AutoCloseable {
     /** Cap pendingChunks size to avoid memory blow-up if AL stalls. */
     private static final int MAX_PENDING_CHUNKS = 32;
 
+    /** PCM chunk produced by the decoder, stamped with its source PTS. */
+    private record PendingChunk(byte[] pcm, long startPtsNanos, long durationNanos) {}
+
+    /** A buffer currently sitting in the AL source queue. Render-thread only. */
+    private record InFlightBuffer(int alBufferId, long startPtsNanos, long durationNanos) {}
+
     private final int streamIndex;
+    private final double timeBase;
     private AVCodecContext codecCtx;
     private SwrContext swrCtx;
     private AVFrame frame;
@@ -72,17 +83,33 @@ public final class AudioStream implements AutoCloseable {
     private boolean alFailed = false;
 
     // Cross-thread: decoder fills, render drains.
-    private final ConcurrentLinkedDeque<byte[]> pendingChunks = new ConcurrentLinkedDeque<>();
+    private final ConcurrentLinkedDeque<PendingChunk> pendingChunks = new ConcurrentLinkedDeque<>();
+
+    /** AL queue head bookkeeping — render thread only. */
+    private final ArrayDeque<InFlightBuffer> alQueue = new ArrayDeque<>();
+
+    /** Latest known audio clock value (nanos in source timeline). Updated on
+     *  every {@link #pump()}; read from any thread. */
+    private volatile long lastClockNanos = 0L;
+    /** {@link System#nanoTime()} when {@code lastClockNanos} was sampled.
+     *  Used to extrapolate between pumps. */
+    private volatile long lastClockSampleAtNanos = System.nanoTime();
+    /** {@code true} once at least one buffer has actually started playing. */
+    private volatile boolean clockStarted = false;
+
+    /** Tracks PTS for chunks whose AVFrame had AV_NOPTS_VALUE. */
+    private long pendingNextStartPtsNanos = 0L;
 
     private float volume = 1.0f;
     private boolean muted = false;
     private final AtomicBoolean paused = new AtomicBoolean(false);
     private volatile boolean closed = false;
 
-    private AudioStream(int streamIndex, AVCodecContext codecCtx, SwrContext swrCtx,
+    private AudioStream(int streamIndex, double timeBase, AVCodecContext codecCtx, SwrContext swrCtx,
                         AVFrame frame, AVChannelLayout outLayout,
                         BytePointer convertOutBuffer, int convertOutCapacity) {
         this.streamIndex = streamIndex;
+        this.timeBase = timeBase;
         this.codecCtx = codecCtx;
         this.swrCtx = swrCtx;
         this.frame = frame;
@@ -144,7 +171,9 @@ public final class AudioStream implements AutoCloseable {
         BytePointer convertOutBuffer = new BytePointer(av_malloc(convertCapacity));
         convertOutBuffer.capacity(convertCapacity);
 
-        return new AudioStream(streamIndex, codecCtx, swrCtx, frame, outLayout,
+        double timeBase = av_q2d(formatStream.time_base());
+
+        return new AudioStream(streamIndex, timeBase, codecCtx, swrCtx, frame, outLayout,
                 convertOutBuffer, convertCapacity);
     }
 
@@ -165,6 +194,11 @@ public final class AudioStream implements AutoCloseable {
             int recv = avcodec_receive_frame(codecCtx, frame);
             if (recv == AVERROR_EAGAIN() || recv == AVERROR_EOF() || recv < 0) break;
 
+            long framePtsTb = frame.best_effort_timestamp();
+            long startPtsNanos = (framePtsTb == AV_NOPTS_VALUE)
+                    ? pendingNextStartPtsNanos
+                    : (long) (framePtsTb * timeBase * 1_000_000_000.0);
+
             // Bytedeco wants the destination as a PointerPointer for swr_convert.
             // For non-planar S16 stereo, only data plane 0 is filled.
             int outCapSamples = convertOutCapacity / (OUT_CHANNELS * BYTES_PER_SAMPLE);
@@ -177,13 +211,15 @@ public final class AudioStream implements AutoCloseable {
 
             outPlanes.close();
             if (convertedSamples > 0) {
+                long durationNanos = (long) convertedSamples * 1_000_000_000L / OUT_SAMPLE_RATE;
                 int bytes = convertedSamples * OUT_CHANNELS * BYTES_PER_SAMPLE;
                 if (pendingChunks.size() < MAX_PENDING_CHUNKS) {
                     byte[] copy = new byte[bytes];
                     convertOutBuffer.position(0);
                     convertOutBuffer.get(copy);
-                    pendingChunks.offerLast(copy);
+                    pendingChunks.offerLast(new PendingChunk(copy, startPtsNanos, durationNanos));
                 }
+                pendingNextStartPtsNanos = startPtsNanos + durationNanos;
             }
             av_frame_unref(frame);
         }
@@ -191,7 +227,8 @@ public final class AudioStream implements AutoCloseable {
 
     /**
      * Render-thread tick. Recycles processed AL buffers, queues pending
-     * decoded chunks, and ensures the source keeps playing across underruns.
+     * decoded chunks, ensures the source keeps playing across underruns,
+     * and refreshes the clock snapshot used by {@link #audioClockNanos()}.
      */
     public void pump() {
         if (closed || alFailed) return;
@@ -209,27 +246,41 @@ public final class AudioStream implements AutoCloseable {
         for (int i = 0; i < processed; i++) {
             int bufId = AL10.alSourceUnqueueBuffers(alSource);
             freeAlBuffers.addLast(bufId);
+            // Pop the matching head from our PTS queue so the next pump
+            // reads sample offset against the right base.
+            alQueue.pollFirst();
         }
 
         // Pump pending chunks into AL.
         while (!freeAlBuffers.isEmpty() && !pendingChunks.isEmpty()) {
-            byte[] chunk = pendingChunks.pollFirst();
+            PendingChunk chunk = pendingChunks.pollFirst();
             int bufId = freeAlBuffers.pollFirst();
-            ByteBuffer bb = ByteBuffer.allocateDirect(chunk.length).order(ByteOrder.nativeOrder());
-            bb.put(chunk).flip();
+            ByteBuffer bb = ByteBuffer.allocateDirect(chunk.pcm.length).order(ByteOrder.nativeOrder());
+            bb.put(chunk.pcm).flip();
             AL10.alBufferData(bufId, AL10.AL_FORMAT_STEREO16, bb, OUT_SAMPLE_RATE);
             AL10.alSourceQueueBuffers(alSource, bufId);
+            alQueue.addLast(new InFlightBuffer(bufId, chunk.startPtsNanos, chunk.durationNanos));
         }
 
-        if (paused.get()) return;
-
-        // Restart on underrun — AL stops the source if its queue runs dry.
-        int state = AL10.alGetSourcei(alSource, AL10.AL_SOURCE_STATE);
-        if (state != AL10.AL_PLAYING) {
-            int queued = AL10.alGetSourcei(alSource, AL10.AL_BUFFERS_QUEUED);
-            if (queued > 0) {
-                AL10.alSourcePlay(alSource);
+        if (!paused.get()) {
+            // Restart on underrun — AL stops the source if its queue runs dry.
+            int state = AL10.alGetSourcei(alSource, AL10.AL_SOURCE_STATE);
+            if (state != AL10.AL_PLAYING) {
+                int queued = AL10.alGetSourcei(alSource, AL10.AL_BUFFERS_QUEUED);
+                if (queued > 0) {
+                    AL10.alSourcePlay(alSource);
+                }
             }
+        }
+
+        // Snapshot the clock for cross-thread reads.
+        InFlightBuffer head = alQueue.peekFirst();
+        if (head != null) {
+            int sampleOffset = AL10.alGetSourcei(alSource, AL10.AL_SAMPLE_OFFSET);
+            long offsetNanos = (long) sampleOffset * 1_000_000_000L / OUT_SAMPLE_RATE;
+            lastClockNanos = head.startPtsNanos + offsetNanos;
+            lastClockSampleAtNanos = System.nanoTime();
+            if (sampleOffset > 0) clockStarted = true;
         }
     }
 
@@ -241,6 +292,25 @@ public final class AudioStream implements AutoCloseable {
         AL10.alSourcef(alSource, AL10.AL_GAIN, muted ? 0f : volume);
         AL10.alSourcei(alSource, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE); // 2D, ignore listener position
         alInitialized = true;
+    }
+
+    /**
+     * Current audio playback position in source-timeline nanoseconds.
+     * Thread-safe (volatile snapshot updated on every {@link #pump()},
+     * extrapolated forward with wall-clock between pumps for smoothness).
+     * Returns 0 until the AL source actually starts producing samples.
+     */
+    public long audioClockNanos() {
+        if (!clockStarted || paused.get() || !alInitialized || alFailed) {
+            return lastClockNanos;
+        }
+        long delta = System.nanoTime() - lastClockSampleAtNanos;
+        return lastClockNanos + Math.max(0, delta);
+    }
+
+    /** Whether the AL source has actually started producing samples. */
+    public boolean isClockStarted() {
+        return clockStarted;
     }
 
     /** Linear gain in [0, 1]. Above 1 amplifies (may clip). */

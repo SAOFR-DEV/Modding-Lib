@@ -389,17 +389,31 @@ public final class VideoPlayer implements AutoCloseable {
                     rgbFrame.data(), rgbFrame.linesize());
 
             long pts = decodedFrame.best_effort_timestamp();
-            double seconds = (pts == AV_NOPTS_VALUE) ? 0.0 : pts * timeBase;
-            long targetNanos = computeTargetNanos(seconds);
-            long sleepNanos = targetNanos - System.nanoTime();
-            while (sleepNanos > 0 && running.get()) {
+            long frameTargetNanos = (pts == AV_NOPTS_VALUE)
+                    ? 0L
+                    : (long) (pts * timeBase * 1_000_000_000.0);
+
+            // Wait until the master clock catches up to this frame.
+            while (running.get()) {
                 if (paused) {
                     Thread.sleep(15);
                     continue;
                 }
-                long sleepMs = Math.max(1, Math.min(20L, sleepNanos / 1_000_000L));
+                long clockNanos = currentClockNanos();
+                long deltaNanos = frameTargetNanos - clockNanos;
+                if (deltaNanos <= 0) break;
+                // If clock looks idle (audio not started yet, or huge jump),
+                // poll fast and re-check without sleeping forever.
+                long sleepMs = Math.max(1, Math.min(20L, deltaNanos / 1_000_000L));
                 Thread.sleep(sleepMs);
-                sleepNanos = targetNanos - System.nanoTime();
+            }
+
+            // If we've fallen >100ms behind the master clock, drop the frame
+            // to catch up rather than render a stale one.
+            long clockAfter = currentClockNanos();
+            if (frameTargetNanos != 0 && clockAfter - frameTargetNanos > 100_000_000L) {
+                av_frame_unref(decodedFrame);
+                continue;
             }
 
             synchronized (frameLock) {
@@ -409,9 +423,19 @@ public final class VideoPlayer implements AutoCloseable {
         }
     }
 
-    private long computeTargetNanos(double seconds) {
+    /**
+     * Current playback position in source-timeline nanoseconds. Prefers the
+     * audio clock once it has actually started producing samples; falls back
+     * to a wall-clock derived from {@link #startNanos} otherwise (handles
+     * audio-less sources, audio init failure, and the brief startup window
+     * before the first AL buffer plays).
+     */
+    private long currentClockNanos() {
+        if (audio != null && audio.isClockStarted()) {
+            return audio.audioClockNanos();
+        }
         if (startNanos < 0) startNanos = System.nanoTime();
-        return startNanos + pauseAccumNanos + (long) (seconds * 1_000_000_000.0);
+        return Math.max(0, System.nanoTime() - startNanos - pauseAccumNanos);
     }
 
     /**
