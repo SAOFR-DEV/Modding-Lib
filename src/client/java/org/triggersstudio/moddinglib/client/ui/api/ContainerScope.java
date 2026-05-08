@@ -283,6 +283,17 @@ public class ContainerScope {
         children.add(Components.AccordionSingle(openIndex, headerStyle, sections));
     }
 
+    // --- Spinner ---
+    public void Spinner() {
+        children.add(Components.Spinner());
+    }
+    public void Spinner(int size) {
+        children.add(Components.Spinner(size));
+    }
+    public void Spinner(int size, int dotColor, long periodMs, Style style) {
+        children.add(Components.Spinner(size, dotColor, periodMs, style));
+    }
+
     // --- Tooltip ---
     public void Tooltip(String text, UIComponent child) {
         children.add(Components.Tooltip(text, child));

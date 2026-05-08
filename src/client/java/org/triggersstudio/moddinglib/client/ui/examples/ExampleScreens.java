@@ -549,6 +549,42 @@ public class ExampleScreens {
     }
 
     /**
+     * Spinner demo: shows a few spinners with different sizes, colors, and
+     * rotation speeds. Demonstrates the indeterminate loading indicator built
+     * on local nanoTime tracking — no global ticker, no input bindings.
+     */
+    public static UIScreen createSpinnerScreen() {
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Spinner Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Default 24px / 800ms",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(12, 0, 4, 0).build()
+                ),
+                Components.Spinner(),
+
+                Components.Text(
+                        "48px, blue, slow (1500ms)",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(12, 0, 4, 0).build()
+                ),
+                Components.Spinner(48, 0xFF_55_AA_FF, 1500L, Style.DEFAULT),
+
+                Components.Text(
+                        "16px, green, fast (400ms)",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(12, 0, 4, 0).build()
+                ),
+                Components.Spinner(16, 0xFF_55_DD_88, 400L, Style.DEFAULT)
+        );
+
+        return Components.Screen(content, "Spinner Demo");
+    }
+
+    /**
      * Tooltip demo: hover any of the labeled buttons to see a popup appear
      * after a short delay. Demonstrates default styling, custom styling, and
      * multi-line content.
