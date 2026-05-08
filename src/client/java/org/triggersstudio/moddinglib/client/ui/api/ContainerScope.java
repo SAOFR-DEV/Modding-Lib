@@ -287,6 +287,20 @@ public class ContainerScope {
         children.add(Components.AccordionSingle(openIndex, headerStyle, sections));
     }
 
+    // --- ColorPicker ---
+    public void ColorPicker(State<Integer> color) {
+        children.add(Components.ColorPicker(color));
+    }
+    public void ColorPicker(State<Integer> color, boolean withAlpha) {
+        children.add(Components.ColorPicker(color, withAlpha));
+    }
+    public void ColorPicker(State<Integer> color, int padSize, boolean withAlpha) {
+        children.add(Components.ColorPicker(color, padSize, withAlpha));
+    }
+    public void ColorPicker(State<Integer> color, int padSize, boolean withAlpha, Style style) {
+        children.add(Components.ColorPicker(color, padSize, withAlpha, style));
+    }
+
     // --- Skeleton ---
     public void Skeleton() {
         children.add(Components.Skeleton());

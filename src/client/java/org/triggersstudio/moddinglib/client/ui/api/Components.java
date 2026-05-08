@@ -629,6 +629,29 @@ public class Components {
         return comp;
     }
 
+    // ===== ColorPicker =====
+    //
+    // HSV color picker bound to a State<Integer> ARGB. Saturation/value pad +
+    // hue slider + optional alpha slider + preview swatch with hex readout.
+    // Internal HSV is preserved across V→0 / S→0 transitions so the user
+    // can pick black/white without losing their hue.
+
+    public static UIComponent ColorPicker(State<Integer> color) {
+        return new ColorPickerComponent(color, 140, true, Style.DEFAULT);
+    }
+
+    public static UIComponent ColorPicker(State<Integer> color, boolean withAlpha) {
+        return new ColorPickerComponent(color, 140, withAlpha, Style.DEFAULT);
+    }
+
+    public static UIComponent ColorPicker(State<Integer> color, int padSize, boolean withAlpha) {
+        return new ColorPickerComponent(color, padSize, withAlpha, Style.DEFAULT);
+    }
+
+    public static UIComponent ColorPicker(State<Integer> color, int padSize, boolean withAlpha, Style style) {
+        return new ColorPickerComponent(color, padSize, withAlpha, style);
+    }
+
     // ===== Skeleton =====
     //
     // Loading placeholder with a shimmer sweep. Three overloads: default

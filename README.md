@@ -84,7 +84,7 @@ The compiled JAR files will be available in the `build/libs/` directory.
   > - [x] Add blink du caret
 - [x] Add combo box for UIs
 - [x] Add select list for UIs
-- [ ] Add color picker for UIs
+- [x] Add color picker for UIs
 - [x] Add toast notifications for UIs
 - [x] Add tooltips for UIs
 - [x] Add pagination for UIs

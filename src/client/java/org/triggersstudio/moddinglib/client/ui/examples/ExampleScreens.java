@@ -556,6 +556,39 @@ public class ExampleScreens {
     }
 
     /**
+     * ColorPicker demo: a picker bound to a {@code State<Integer>} ARGB. A
+     * preview rectangle below the picker reads the same state and updates
+     * live.
+     */
+    public static UIScreen createColorPickerScreen() {
+        State<Integer> color = State.of(0xFF_55_88_FF, "demo.colorpicker.value");
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "ColorPicker Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Drag the SV pad, hue strip, and alpha strip.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.ColorPicker(color),
+
+                Components.Text(
+                        color.map(c -> String.format("Selected: #%08X  (alpha=%d, rgb=#%06X)",
+                                c, (c >>> 24) & 0xFF, c & 0x00_FF_FF_FF)),
+                        fontSize(10).textColor(0xFF_AA_AA_AA).margin(12, 0, 4, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "ColorPicker Demo");
+    }
+
+    /**
      * Skeleton demo: loading placeholders simulating a card layout. Each
      * skeleton has a shimmer sweep with the same period, so all bars travel
      * in lock-step — a cheap way to make a loading state feel coherent.
