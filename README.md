@@ -80,8 +80,8 @@ The compiled JAR files will be available in the `build/libs/` directory.
 - [ ] Add player render for UIs
 - [x] Add text input for UIs
   > - [ ] Add text area for UIs multi-lign, filter/max length, Tab cycle focus
-  > - [ ] Add onSubmit Enter
-  > - [ ] Add blink du caret
+  > - [x] Add onSubmit Enter
+  > - [x] Add blink du caret
 - [x] Add combo box for UIs
 - [x] Add select list for UIs
 - [ ] Add color picker for UIs

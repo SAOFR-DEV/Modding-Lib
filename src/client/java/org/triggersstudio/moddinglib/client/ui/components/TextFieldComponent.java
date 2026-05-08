@@ -10,6 +10,8 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.function.Consumer;
+
 /**
  * Single-line editable text field bound bidirectionally to a {@link State<String>}.
  *
@@ -33,17 +35,25 @@ public class TextFieldComponent extends UIComponent {
     private static final int DEFAULT_HEIGHT = 20;
     private static final int TEXT_HEIGHT = 10;
     private static final int DEFAULT_SELECTION_COLOR = 0x80_55_88_FF;
+    private static final long CARET_BLINK_INTERVAL_MS = 500L;
 
     private final State<String> state;
     private final String placeholder;
     private final StringBuilder buffer;
+    private Consumer<String> onSubmit;
 
     private int caret;
     private int anchor = -1; // -1 = no selection
     private int scrollOffset = 0;
     private boolean mouseDragging = false;
+    private long lastCaretActivityMs = System.currentTimeMillis();
 
     public TextFieldComponent(State<String> state, String placeholder, Style style) {
+        this(state, placeholder, style, null);
+    }
+
+    public TextFieldComponent(State<String> state, String placeholder, Style style,
+                              Consumer<String> onSubmit) {
         super(style);
         if (state == null) {
             throw new IllegalArgumentException("TextField requires a non-null State");
@@ -53,6 +63,17 @@ public class TextFieldComponent extends UIComponent {
         String initial = state.get();
         this.buffer = new StringBuilder(initial != null ? initial : "");
         this.caret = this.buffer.length();
+        this.onSubmit = onSubmit;
+    }
+
+    /**
+     * Set or replace the submission callback fired when the user presses Enter.
+     * The current buffer contents (post-edit) is passed to the consumer. Pass
+     * {@code null} to disable.
+     */
+    public TextFieldComponent setOnSubmit(Consumer<String> onSubmit) {
+        this.onSubmit = onSubmit;
+        return this;
     }
 
     @Override
@@ -133,7 +154,7 @@ public class TextFieldComponent extends UIComponent {
 
                 drawContext.drawText(tr, bufStr, innerX - scrollOffset, textY, style.getTextColor(), false);
 
-                if (isFocused()) {
+                if (isFocused() && caretVisible()) {
                     int caretPx = tr.getWidth(bufStr.substring(0, caret));
                     int caretX = innerX + caretPx - scrollOffset;
                     drawContext.fill(caretX, textY - 1, caretX + 1, textY + TEXT_HEIGHT, style.getTextColor());
@@ -151,6 +172,20 @@ public class TextFieldComponent extends UIComponent {
         drawContext.fill(x, y + height - bw, x + width, y + height, c);
         drawContext.fill(x, y, x + bw, y + height, c);
         drawContext.fill(x + width - bw, y, x + width, y + height, c);
+    }
+
+    /**
+     * Caret blinks 1Hz: solid on for {@link #CARET_BLINK_INTERVAL_MS}ms, off
+     * for the same. The phase resets on caret movement / typing so the caret
+     * is always visible at the moment of an edit.
+     */
+    private boolean caretVisible() {
+        long since = System.currentTimeMillis() - lastCaretActivityMs;
+        return ((since / CARET_BLINK_INTERVAL_MS) & 1L) == 0L;
+    }
+
+    private void resetCaretBlink() {
+        lastCaretActivityMs = System.currentTimeMillis();
     }
 
     private int resolvePlaceholderColor() {
@@ -246,6 +281,13 @@ public class TextFieldComponent extends UIComponent {
                 // Blur rather than let the screen close.
                 if (context != null) context.clearFocus();
                 return true;
+            case GLFW.GLFW_KEY_ENTER:
+            case GLFW.GLFW_KEY_KP_ENTER:
+                if (onSubmit != null) {
+                    onSubmit.accept(buffer.toString());
+                    return true;
+                }
+                return false;
             default:
                 return false;
         }
@@ -257,6 +299,11 @@ public class TextFieldComponent extends UIComponent {
         insertText(String.valueOf(chr));
         pushState();
         return true;
+    }
+
+    @Override
+    public void onFocus() {
+        resetCaretBlink();
     }
 
     @Override
@@ -368,6 +415,7 @@ public class TextFieldComponent extends UIComponent {
             scrollOffset = caretPx - innerW + 1;
         }
         if (scrollOffset < 0) scrollOffset = 0;
+        resetCaretBlink();
     }
 
     private static int resolveSize(int constraint, int fallback, int max) {
