@@ -252,6 +252,31 @@ public class Components {
         return new TextFieldComponent(state, placeholder, style, onSubmit);
     }
 
+    // ===== Text Area =====
+    //
+    // Multi-line editable area bound bidirectionally to a State<String> using
+    // \n as the line separator. Vertical scroll, full nav keys, multi-line
+    // clipboard, optional max length, configurable Tab insertion (default
+    // 4 spaces). Enter inserts a newline.
+
+    public static UIComponent TextArea(State<String> state) {
+        return new TextAreaComponent(state, "", Style.DEFAULT, 0, 4);
+    }
+
+    public static UIComponent TextArea(State<String> state, String placeholder, Style style) {
+        return new TextAreaComponent(state, placeholder, style, 0, 4);
+    }
+
+    public static UIComponent TextArea(State<String> state, String placeholder, Style style,
+                                       int maxLength) {
+        return new TextAreaComponent(state, placeholder, style, maxLength, 4);
+    }
+
+    public static UIComponent TextArea(State<String> state, String placeholder, Style style,
+                                       int maxLength, int tabSpaces) {
+        return new TextAreaComponent(state, placeholder, style, maxLength, tabSpaces);
+    }
+
     // ===== Dynamic =====
     //
     // Container whose single child is derived from a State<T>. The builder
