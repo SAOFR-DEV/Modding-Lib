@@ -349,6 +349,67 @@ public class ExampleScreens {
     }
 
     /**
+     * Video demo (phase 1, no audio). Edit the {@code SAMPLE_URL} below to
+     * point at a local mp4 / http stream / rtsp / etc. — anything FFmpeg can
+     * decode. The component opens it on attach and disposes the player on
+     * detach.
+     *
+     * <p>If the open call throws (codec missing, bad path, network refused),
+     * the screen falls back to a textual error.
+     */
+    public static UIScreen createVideoScreen() {
+        // Replace this with a real source on your machine to test.
+        final String SAMPLE_URL = System.getProperty("moddinglib.sampleVideo",
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+
+        UIComponent body;
+        try {
+            body = Components.Column(
+                    Components.Text(
+                            "Video Demo (phase 1 — no audio)",
+                            fontSize(20).textColor(WHITE).bold().build()
+                    ),
+                    Components.Text(
+                            "Source: " + SAMPLE_URL,
+                            fontSize(9).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                    ),
+                    Components.Video(
+                            SAMPLE_URL,
+                            backgroundColor(0xFF_00_00_00)
+                                    .width(480).height(270)
+                                    .border(0xFF_44_44_44, 1).borderRadius(4).build()
+                    ),
+                    Components.Text(
+                            "Pause/resume needs wiring in via the player handle — coming with audio in phase 2.",
+                            fontSize(9).textColor(0xFF_77_77_77).margin(12, 0, 0, 0).build()
+                    )
+            );
+        } catch (RuntimeException ex) {
+            body = Components.Column(
+                    Components.Text(
+                            "Video failed to open",
+                            fontSize(20).textColor(0xFF_FF_55_55).bold().build()
+                    ),
+                    Components.Text(
+                            ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName(),
+                            fontSize(10).textColor(0xFF_AA_AA_AA).margin(8, 0, 0, 0).build()
+                    ),
+                    Components.Text(
+                            "Pass -Dmoddinglib.sampleVideo=<path> at launch to test with a local file.",
+                            fontSize(9).textColor(0xFF_77_77_77).margin(8, 0, 0, 0).build()
+                    )
+            );
+        }
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+                body
+        );
+
+        return Components.Screen(content, "Video Demo");
+    }
+
+    /**
      * Corner-radius demo: showcases how the new {@code borderRadius} style
      * field flows through {@link Components#Row}, Buttons, sliders, progress
      * bars, etc. Each row pairs a sharp variant with a rounded one for

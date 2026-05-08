@@ -816,6 +816,37 @@ public class Components {
         return new SpinnerComponent(size, dotColor, periodMs, style);
     }
 
+    // ===== Video =====
+    //
+    // Phase-1 video player (no audio). Pass an already-opened VideoPlayer or
+    // use the URL overload which opens one and lets the component own it.
+    // Source can be any URL FFmpeg understands (file path, http://, rtsp://,
+    // live streams, etc.).
+
+    public static UIComponent Video(String url) {
+        return Video(url, Style.DEFAULT);
+    }
+
+    public static UIComponent Video(String url, Style style) {
+        return new VideoComponent(
+                org.triggersstudio.moddinglib.client.ui.video.VideoPlayer.open(url),
+                style, true);
+    }
+
+    public static UIComponent Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player) {
+        return new VideoComponent(player, Style.DEFAULT, false);
+    }
+
+    public static UIComponent Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player,
+                                    Style style) {
+        return new VideoComponent(player, style, false);
+    }
+
+    public static UIComponent Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player,
+                                    Style style, boolean ownsPlayer) {
+        return new VideoComponent(player, style, ownsPlayer);
+    }
+
     // ===== Tooltip =====
     //
     // Wraps any child. After the cursor hovers the child for delayMs (default

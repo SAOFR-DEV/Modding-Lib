@@ -381,6 +381,20 @@ public class ContainerScope {
         children.add(Components.Spinner(size, dotColor, periodMs, style));
     }
 
+    // --- Video ---
+    public void Video(String url) {
+        children.add(Components.Video(url));
+    }
+    public void Video(String url, Style style) {
+        children.add(Components.Video(url, style));
+    }
+    public void Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player) {
+        children.add(Components.Video(player));
+    }
+    public void Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player, Style style) {
+        children.add(Components.Video(player, style));
+    }
+
     // --- Tooltip ---
     public void Tooltip(String text, UIComponent child) {
         children.add(Components.Tooltip(text, child));

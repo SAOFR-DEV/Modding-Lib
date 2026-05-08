@@ -71,6 +71,9 @@ The compiled JAR files will be available in the `build/libs/` directory.
   > - [x] Loop / yoyo / onComplete callbacks
   > - [x] ColorTween (interpolate ARGB)
 - [ ] Add video components for UIs
+  > - [x] Phase 1 — VideoPlayer (FFmpeg via JavaCPP) + VideoComponent, video stream only, no audio yet
+  > - [ ] Phase 2 — audio decode via OpenAL with A/V sync clock
+  > - [ ] Phase 3 — seek / loop / hardware decode probe / direct sws_scale into NativeImage
 - [x] Add progress bars for UIs
 - [x] Add sliders for UIs
   >  - [x] Slider vertical (ajout d'un flag d'orientation).
