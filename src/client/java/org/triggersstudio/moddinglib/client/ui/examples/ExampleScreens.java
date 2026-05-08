@@ -357,7 +357,7 @@ public class ExampleScreens {
      */
     public static UIScreen createVideoScreen() {
         final String SAMPLE_URL = System.getProperty("moddinglib.sampleVideo",
-                "https://www.w3schools.com/tags/mov_bbb.mp4");
+                "https://lafibre.info/videos/test/201411_blender_big_buck_bunny_24fps_480p_av1.mp4");
 
         // Hold the player handle so the buttons below can call seek/setLoop.
         java.util.concurrent.atomic.AtomicReference<
@@ -390,6 +390,23 @@ public class ExampleScreens {
                                         var p = playerRef.get();
                                         if (p != null) p.seek(0);
                                     }).build());
+                    row.Button("⏪ -5s",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(22).width(70).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p == null) return;
+                                        p.seek(Math.max(0, p.currentTimeSeconds() - 5.0));
+                                    }).build());
+                    row.Button("⏯ Pause",
+                            backgroundColor(0xFF_55_55_55).textColor(WHITE)
+                                    .height(22).width(70).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p == null) return;
+                                        if (p.isPaused()) p.play();
+                                        else p.pause();
+                                    }).build());
                     row.Button("⏭ +5s",
                             backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
                                     .height(22).width(70).margin(8, 6, 0, 0)
@@ -412,7 +429,7 @@ public class ExampleScreens {
                                     }).build());
                 }),
                 Components.Text(
-                        "Loop = on. Click Restart to seek to 0, +5s to jump to 5s, Mute to toggle audio.",
+                        "Loop = on. Restart → seek 0; -5s/+5s → relative; Pause toggle; Mute toggle.",
                         fontSize(9).textColor(0xFF_77_77_77).margin(8, 0, 0, 0).build()
                 )
         );
