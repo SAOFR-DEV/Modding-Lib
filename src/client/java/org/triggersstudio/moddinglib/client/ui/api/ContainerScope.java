@@ -110,6 +110,10 @@ public class ContainerScope {
     public void TextField(State<String> state, String placeholder, Style style) {
         children.add(Components.TextField(state, placeholder, style));
     }
+    public void TextField(State<String> state, String placeholder, Style style,
+                          Consumer<String> onSubmit) {
+        children.add(Components.TextField(state, placeholder, style, onSubmit));
+    }
 
     // --- Dynamic ---
     public <T> void Dynamic(State<T> state, Function<T, UIComponent> builder) {

@@ -60,6 +60,7 @@ public class ExampleScreens {
      */
     public static UIScreen createTextFieldScreen() {
         State<String> query = State.of("", "demo.textfield.query");
+        State<String> lastSubmit = State.of("(none yet)", "demo.textfield.lastSubmit");
 
         UIComponent content = Components.Column(
                 padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
@@ -81,12 +82,18 @@ public class ExampleScreens {
 
                 Components.TextField(
                         query,
-                        "Search...",
+                        "Search... (Enter to submit)",
                         backgroundColor(0xFF_2A_2A_2A)
                                 .textColor(WHITE)
                                 .width(240).height(22)
                                 .padding(4, 6)
-                                .build()
+                                .build(),
+                        submitted -> lastSubmit.set(submitted.isEmpty() ? "(empty)" : submitted)
+                ),
+
+                Components.Text(
+                        lastSubmit.map(s -> "Last submitted: " + s),
+                        fontSize(10).textColor(0xFF_88_DD_88).margin(8, 0, 0, 0).build()
                 )
         );
 

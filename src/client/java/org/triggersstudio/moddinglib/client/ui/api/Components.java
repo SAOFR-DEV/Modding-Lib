@@ -241,6 +241,17 @@ public class Components {
         return new TextFieldComponent(state, placeholder, style);
     }
 
+    /**
+     * TextField with an Enter-key submit handler. The current buffer contents
+     * are passed to {@code onSubmit} when the user presses Enter (or numpad
+     * Enter). The handler is independent of the bound state — typical use is
+     * to dispatch a search, send a chat message, etc.
+     */
+    public static UIComponent TextField(State<String> state, String placeholder, Style style,
+                                        Consumer<String> onSubmit) {
+        return new TextFieldComponent(state, placeholder, style, onSubmit);
+    }
+
     // ===== Dynamic =====
     //
     // Container whose single child is derived from a State<T>. The builder
