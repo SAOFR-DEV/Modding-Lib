@@ -281,6 +281,26 @@ public final class VideoPlayer implements AutoCloseable {
     }
 
     /**
+     * Current playback position in seconds along the source timeline.
+     * Driven by the audio clock when audio is playing, wall-clock fallback
+     * otherwise. Returns 0 before the first frame has been displayed.
+     */
+    public double currentTimeSeconds() {
+        return currentClockNanos() / 1_000_000_000.0;
+    }
+
+    /**
+     * Total duration in seconds, or {@link Double#POSITIVE_INFINITY} for
+     * live / unbounded streams (where FFmpeg reports {@code AV_NOPTS_VALUE}).
+     */
+    public double durationSeconds() {
+        if (formatCtx == null) return Double.POSITIVE_INFINITY;
+        long dur = formatCtx.duration();
+        if (dur == AV_NOPTS_VALUE || dur <= 0) return Double.POSITIVE_INFINITY;
+        return dur / 1_000_000.0; // AV_TIME_BASE = 1_000_000
+    }
+
+    /**
      * When true, the decoder rewinds to time 0 on EOF instead of stopping.
      * Has no effect on live sources (av_seek_frame fails). Switch on/off
      * at any time — the next EOF respects the current value.

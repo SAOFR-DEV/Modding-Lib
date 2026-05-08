@@ -395,7 +395,13 @@ public class ExampleScreens {
                                     .height(22).width(70).margin(8, 6, 0, 0)
                                     .onClick((mx, my, btn) -> {
                                         var p = playerRef.get();
-                                        if (p != null) p.seek(5.0);
+                                        if (p == null) return;
+                                        // Relative seek, clamped to just before the end so we don't
+                                        // immediately overshoot into EOF/loop on short remainders.
+                                        double target = p.currentTimeSeconds() + 5.0;
+                                        double dur = p.durationSeconds();
+                                        if (Double.isFinite(dur)) target = Math.min(target, dur - 0.1);
+                                        p.seek(Math.max(0, target));
                                     }).build());
                     row.Button("Mute",
                             backgroundColor(0xFF_88_2A_2A).textColor(WHITE)
