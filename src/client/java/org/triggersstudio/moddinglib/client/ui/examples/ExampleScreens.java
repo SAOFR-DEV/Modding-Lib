@@ -360,7 +360,7 @@ public class ExampleScreens {
     public static UIScreen createVideoScreen() {
         // Replace this with a real source on your machine to test.
         final String SAMPLE_URL = System.getProperty("moddinglib.sampleVideo",
-                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                "https://samplelib.com/mp4/sample-5s.mp4");
 
         UIComponent body;
         try {

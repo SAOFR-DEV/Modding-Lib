@@ -1,15 +1,17 @@
 package org.triggersstudio.moddinglib.client.ui.components;
 
-import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.video.VideoPlayer;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * UI wrapper around a {@link VideoPlayer}. Each render frame the component
@@ -24,7 +26,7 @@ import org.triggersstudio.moddinglib.client.ui.video.VideoPlayer;
  *
  * <p>Phase-1 limitations:
  * <ul>
- *   <li>Per-pixel ABGR pack on render thread — slow at 1080p+. Phase 3
+ *   <li>Per-pixel ARGB pack on render thread — slow at 1080p+. Phase 3
  *       will wire sws_scale directly into the NativeImage buffer.</li>
  *   <li>No volume / audio output (player decodes video stream only).</li>
  *   <li>If the source ends and {@code isEnded()}, the last frame is held.</li>
@@ -32,12 +34,15 @@ import org.triggersstudio.moddinglib.client.ui.video.VideoPlayer;
  */
 public class VideoComponent extends UIComponent {
 
+    private static final AtomicLong INSTANCE_COUNTER = new AtomicLong(0);
+
     private final VideoPlayer player;
     private final boolean ownsPlayer;
+    private final long instanceId = INSTANCE_COUNTER.getAndIncrement();
 
     private NativeImageBackedTexture texture;
     private Identifier textureId;
-    private byte[] frameBuffer;
+    private final int[] frameArgb;
     private long uploadedFrameVersion = 0L;
 
     public VideoComponent(VideoPlayer player, Style style, boolean ownsPlayer) {
@@ -45,7 +50,7 @@ public class VideoComponent extends UIComponent {
         if (player == null) throw new IllegalArgumentException("player must not be null");
         this.player = player;
         this.ownsPlayer = ownsPlayer;
-        this.frameBuffer = new byte[player.getWidth() * player.getHeight() * 4];
+        this.frameArgb = new int[player.getWidth() * player.getHeight()];
     }
 
     public VideoPlayer getPlayer() {
@@ -92,7 +97,7 @@ public class VideoComponent extends UIComponent {
         long latestVersion = player.frameVersion();
         if (latestVersion > 0 && latestVersion != uploadedFrameVersion) {
             ensureTexture();
-            long actualVersion = player.readLatestFrame(frameBuffer, uploadedFrameVersion);
+            long actualVersion = player.readLatestFrameArgb(frameArgb, uploadedFrameVersion);
             if (actualVersion != uploadedFrameVersion && texture != null && texture.getImage() != null) {
                 copyFrameToImage(texture.getImage());
                 texture.upload();
@@ -113,20 +118,14 @@ public class VideoComponent extends UIComponent {
     }
 
     private void copyFrameToImage(NativeImage img) {
+        // frameArgb is already ARGB-packed thanks to sws_scale → BGRA + LE
+        // int read on the player side. Just push each pixel into the image.
         int w = player.getWidth();
         int h = player.getHeight();
         for (int yy = 0; yy < h; yy++) {
+            int row = yy * w;
             for (int xx = 0; xx < w; xx++) {
-                int i = (yy * w + xx) * 4;
-                int r = frameBuffer[i] & 0xff;
-                int g = frameBuffer[i + 1] & 0xff;
-                int b = frameBuffer[i + 2] & 0xff;
-                int a = frameBuffer[i + 3] & 0xff;
-                // NativeImage in MC 1.21.x packs as ABGR8888 (alpha-MSB,
-                // then blue-green-red). FFmpeg AV_PIX_FMT_RGBA delivers
-                // R-G-B-A bytes in memory.
-                int abgr = (a << 24) | (b << 16) | (g << 8) | r;
-                img.setColor(xx, yy, abgr);
+                img.setColorArgb(xx, yy, frameArgb[row + xx]);
             }
         }
     }
@@ -137,8 +136,9 @@ public class VideoComponent extends UIComponent {
         int h = player.getHeight();
         NativeImage img = new NativeImage(w, h, false);
         texture = new NativeImageBackedTexture(img);
-        textureId = MinecraftClient.getInstance().getTextureManager()
-                .registerDynamicTexture("moddinglib_video", texture);
+        // 1.21.4 dropped registerDynamicTexture — caller now supplies the id.
+        textureId = Identifier.of("moddinglib", "video/" + instanceId);
+        MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
     }
 
     private static int resolveSize(int constraint, int fallback, int max) {

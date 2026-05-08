@@ -14,6 +14,8 @@ import org.bytedeco.javacpp.DoublePointer;
 import org.bytedeco.javacpp.PointerPointer;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -100,7 +102,27 @@ public final class VideoPlayer implements AutoCloseable {
         this.width = videoCodecCtx.width();
         this.height = videoCodecCtx.height();
         this.timeBase = timeBase;
-        this.rgbView = rgbBuffer.asByteBuffer();
+        // BGRA bytes read as little-endian int = ARGB packed.
+        this.rgbView = rgbBuffer.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
+    }
+
+    private static final AtomicBoolean NETWORK_INIT_DONE = new AtomicBoolean(false);
+
+    private static void ensureNetworkInit() {
+        if (NETWORK_INIT_DONE.compareAndSet(false, true)) {
+            avformat_network_init();
+        }
+    }
+
+    private static String ffmpegError(int code) {
+        BytePointer buf = new BytePointer(256);
+        try {
+            av_strerror(code, buf, 256);
+            String msg = buf.getString();
+            return (msg != null && !msg.isEmpty() ? msg : "(no message)") + " [code=" + code + "]";
+        } finally {
+            buf.close();
+        }
     }
 
     /**
@@ -109,21 +131,42 @@ public final class VideoPlayer implements AutoCloseable {
      * {@code http://}, {@code https://}, {@code rtsp://}, etc. depending on
      * the FFmpeg build's protocol support.
      *
+     * <p>Network init is performed once on first open; protocols requiring
+     * TLS need an FFmpeg build with OpenSSL/GnuTLS support (the JavaCPP
+     * presets ship one).
+     *
      * @throws VideoOpenException if any step of the FFmpeg open dance fails.
      */
     public static VideoPlayer open(String source) {
+        ensureNetworkInit();
         AVFormatContext formatCtx = new AVFormatContext(null);
-        if (avformat_open_input(formatCtx, source, null, null) < 0) {
-            throw new VideoOpenException("avformat_open_input failed for " + source);
+
+        // Bump probe + analyze so the H.264 SPS lands inside the analysis
+        // window even on slow / partial streams. Without this, FFmpeg can
+        // return a stream with pix_fmt=NONE and the next sws_getContext
+        // hits an assertion in libswscale.
+        AVDictionary openOpts = new AVDictionary(null);
+        av_dict_set(openOpts, "probesize", "20000000", 0);
+        av_dict_set(openOpts, "analyzeduration", "20000000", 0);
+
+        int ret = avformat_open_input(formatCtx, source, null, openOpts);
+        av_dict_free(openOpts);
+        if (ret < 0) {
+            throw new VideoOpenException("avformat_open_input failed for " + source + ": " + ffmpegError(ret));
         }
-        if (avformat_find_stream_info(formatCtx, (PointerPointer<?>) null) < 0) {
+        // Mirror the bumped values on the context for find_stream_info too.
+        formatCtx.probesize(20_000_000L);
+        formatCtx.max_analyze_duration(20_000_000L);
+
+        ret = avformat_find_stream_info(formatCtx, (PointerPointer<?>) null);
+        if (ret < 0) {
             avformat_close_input(formatCtx);
-            throw new VideoOpenException("avformat_find_stream_info failed for " + source);
+            throw new VideoOpenException("avformat_find_stream_info failed for " + source + ": " + ffmpegError(ret));
         }
         int videoIdx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, (AVCodec) null, 0);
         if (videoIdx < 0) {
             avformat_close_input(formatCtx);
-            throw new VideoOpenException("No video stream in " + source);
+            throw new VideoOpenException("No video stream in " + source + " (av_find_best_stream=" + videoIdx + ")");
         }
         AVStream videoStream = formatCtx.streams(videoIdx);
         AVCodecParameters params = videoStream.codecpar();
@@ -133,35 +176,46 @@ public final class VideoPlayer implements AutoCloseable {
             throw new VideoOpenException("Unsupported codec id=" + params.codec_id());
         }
         AVCodecContext videoCodecCtx = avcodec_alloc_context3(codec);
-        if (avcodec_parameters_to_context(videoCodecCtx, params) < 0) {
+        ret = avcodec_parameters_to_context(videoCodecCtx, params);
+        if (ret < 0) {
             avcodec_free_context(videoCodecCtx);
             avformat_close_input(formatCtx);
-            throw new VideoOpenException("avcodec_parameters_to_context failed");
+            throw new VideoOpenException("avcodec_parameters_to_context failed: " + ffmpegError(ret));
         }
-        if (avcodec_open2(videoCodecCtx, codec, (AVDictionary) null) < 0) {
+        ret = avcodec_open2(videoCodecCtx, codec, (AVDictionary) null);
+        if (ret < 0) {
             avcodec_free_context(videoCodecCtx);
             avformat_close_input(formatCtx);
-            throw new VideoOpenException("avcodec_open2 failed");
+            throw new VideoOpenException("avcodec_open2 failed: " + ffmpegError(ret));
         }
         int w = videoCodecCtx.width();
         int h = videoCodecCtx.height();
+        int srcPixFmt = videoCodecCtx.pix_fmt();
+        if (srcPixFmt == AV_PIX_FMT_NONE) {
+            avcodec_free_context(videoCodecCtx);
+            avformat_close_input(formatCtx);
+            throw new VideoOpenException("Stream pix_fmt is unspecified — try a longer / less truncated source");
+        }
+        // Output BGRA so the in-memory bytes (B,G,R,A) read back as a
+        // little-endian 32-bit int give us exactly 0xAARRGGBB = the ARGB
+        // that NativeImage.setColorArgb expects. Avoids per-pixel shuffling.
         SwsContext swsCtx = sws_getContext(
-                w, h, videoCodecCtx.pix_fmt(),
-                w, h, AV_PIX_FMT_RGBA,
+                w, h, srcPixFmt,
+                w, h, AV_PIX_FMT_BGRA,
                 SWS_BILINEAR, null, null, (DoublePointer) null);
         if (swsCtx == null) {
             avcodec_free_context(videoCodecCtx);
             avformat_close_input(formatCtx);
-            throw new VideoOpenException("sws_getContext failed");
+            throw new VideoOpenException("sws_getContext failed (src pix_fmt=" + srcPixFmt + ")");
         }
         AVFrame decodedFrame = av_frame_alloc();
         AVFrame rgbFrame = av_frame_alloc();
         AVPacket packet = av_packet_alloc();
-        int byteCount = av_image_get_buffer_size(AV_PIX_FMT_RGBA, w, h, 1);
+        int byteCount = av_image_get_buffer_size(AV_PIX_FMT_BGRA, w, h, 1);
         BytePointer rgbBuffer = new BytePointer(av_malloc(byteCount));
         rgbBuffer.capacity(byteCount);
         av_image_fill_arrays(rgbFrame.data(), rgbFrame.linesize(),
-                rgbBuffer, AV_PIX_FMT_RGBA, w, h, 1);
+                rgbBuffer, AV_PIX_FMT_BGRA, w, h, 1);
         double timeBase = av_q2d(videoStream.time_base());
         return new VideoPlayer(source, formatCtx, videoIdx, videoCodecCtx, swsCtx,
                 decodedFrame, rgbFrame, packet, rgbBuffer, timeBase);
@@ -207,10 +261,9 @@ public final class VideoPlayer implements AutoCloseable {
     }
 
     /**
-     * Copy the latest decoded RGBA frame into {@code dest}, but only if the
-     * current version differs from {@code lastVersion}. Returns the version
-     * actually written (==lastVersion if nothing was copied, or a higher
-     * value when a fresh frame was copied).
+     * Copy the latest decoded BGRA frame into {@code dest} as raw bytes, but
+     * only if the current version differs from {@code lastVersion}. Returns
+     * the version written (==lastVersion if nothing was copied).
      */
     public long readLatestFrame(byte[] dest, long lastVersion) {
         synchronized (frameLock) {
@@ -219,6 +272,30 @@ public final class VideoPlayer implements AutoCloseable {
             int n = Math.min(dest.length, rgbView.capacity());
             rgbView.position(0);
             rgbView.get(dest, 0, n);
+            return v;
+        }
+    }
+
+    /**
+     * Copy the latest decoded frame as packed ARGB ints into {@code dest}.
+     * Each int is alpha-MSB / red / green / blue (the format
+     * {@code NativeImage.setColorArgb} expects). Returns the frame version
+     * actually written, or {@code lastVersion} if no new frame is available.
+     *
+     * <p>This is the fast path the {@code VideoComponent} uses — the buffer
+     * is laid out as BGRA bytes by sws_scale, and the underlying ByteBuffer
+     * is in little-endian order, so reading 4 bytes as one int yields ARGB
+     * packed in one go (no per-pixel shifting in Java).
+     */
+    public long readLatestFrameArgb(int[] dest, long lastVersion) {
+        synchronized (frameLock) {
+            long v = frameVersion.get();
+            if (v == 0 || v == lastVersion) return v;
+            int pixels = width * height;
+            int n = Math.min(dest.length, pixels);
+            IntBuffer ints = rgbView.asIntBuffer();
+            ints.position(0);
+            ints.get(dest, 0, n);
             return v;
         }
     }
