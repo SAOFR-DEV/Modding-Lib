@@ -618,6 +618,24 @@ public class Components {
         return comp;
     }
 
+    // ===== Spinner =====
+    //
+    // Indeterminate loading indicator. Fixed-size circular dot trail with
+    // smooth rotation. Three overloads: default 24px, custom size, fully
+    // configured (size + dot color + period in ms + style).
+
+    public static UIComponent Spinner() {
+        return new SpinnerComponent();
+    }
+
+    public static UIComponent Spinner(int size) {
+        return new SpinnerComponent(size);
+    }
+
+    public static UIComponent Spinner(int size, int dotColor, long periodMs, Style style) {
+        return new SpinnerComponent(size, dotColor, periodMs, style);
+    }
+
     // ===== Tooltip =====
     //
     // Wraps any child. After the cursor hovers the child for delayMs (default
