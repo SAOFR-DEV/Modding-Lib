@@ -76,7 +76,7 @@ The compiled JAR files will be available in the `build/libs/` directory.
   >  - [x] Slider vertical (ajout d'un flag d'orientation).
   >  - [x] Support clavier (← → Home End) — nécessite un système de focus.
   >  - [x] Hover visuel sur le thumb.
-  >  - [ ] Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
+  >  - [x] Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
 - [ ] Add player render for UIs
 - [x] Add text input for UIs
   > - [x] Add text area for UIs multi-lign, filter/max length, Tab cycle focus

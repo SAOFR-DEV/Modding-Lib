@@ -5,6 +5,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import org.triggersstudio.moddinglib.client.ui.animation.Easing;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -29,6 +30,7 @@ public final class ToastManager {
     private static final int TOP_MARGIN = 12;
     private static final int GAP = 6;
     private static final int ACCENT_BAR_WIDTH = 4;
+    private static final int RADIUS = 4;
     private static final int BG_COLOR = 0xF0_15_15_1C;
     private static final int BORDER_COLOR = 0xFF_2A_2A_36;
     private static final int LABEL_COLOR = 0xFF_BB_BB_BB;
@@ -103,15 +105,10 @@ public final class ToastManager {
         int label = withAlpha(LABEL_COLOR, alpha);
         int msg = withAlpha(MESSAGE_COLOR, alpha);
 
-        // Background.
-        drawContext.fill(x, y, x + TOAST_WIDTH, y + TOAST_HEIGHT, bg);
-        // 1px border.
-        drawContext.fill(x, y, x + TOAST_WIDTH, y + 1, border);
-        drawContext.fill(x, y + TOAST_HEIGHT - 1, x + TOAST_WIDTH, y + TOAST_HEIGHT, border);
-        drawContext.fill(x, y, x + 1, y + TOAST_HEIGHT, border);
-        drawContext.fill(x + TOAST_WIDTH - 1, y, x + TOAST_WIDTH, y + TOAST_HEIGHT, border);
-        // Accent bar (left).
-        drawContext.fill(x, y, x + ACCENT_BAR_WIDTH, y + TOAST_HEIGHT, accent);
+        Shapes.fillRoundRect(drawContext, x, y, TOAST_WIDTH, TOAST_HEIGHT, RADIUS, bg);
+        Shapes.drawRoundRectBorder(drawContext, x, y, TOAST_WIDTH, TOAST_HEIGHT, RADIUS, 1, border);
+        // Accent bar — kept rectangular for a clear edge marker.
+        drawContext.fill(x + 1, y + 1, x + ACCENT_BAR_WIDTH, y + TOAST_HEIGHT - 1, accent);
 
         // We rely on per-color alpha to fade text — Minecraft draws text with the
         // color's alpha channel honored when shadow is true.

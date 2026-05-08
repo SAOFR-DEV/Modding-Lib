@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.state.State;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
@@ -71,12 +72,14 @@ public class ComboBoxComponent<T> extends UIComponent {
                 .textColor(0xFF_FF_FF_FF)
                 .padding(4, 6)
                 .border(0xFF_44_44_44, 1)
+                .borderRadius(3)
                 .build();
     }
 
     public static Style defaultPopoverStyle() {
         return Style.backgroundColor(0xF8_18_18_20)
                 .border(0xFF_55_55_55, 1)
+                .borderRadius(3)
                 .build();
     }
 
@@ -192,11 +195,13 @@ public class ComboBoxComponent<T> extends UIComponent {
         if (hovered && !open && bg != 0x00_00_00_00) {
             bg = darken(bg, 20);
         }
-        drawContext.fill(x, y, x + width, y + height, bg);
+        int triggerRadius = triggerStyle.getBorderRadius();
+        Shapes.fillRoundRect(drawContext, x, y, width, height, triggerRadius, bg);
         if (triggerStyle.getBorderWidth() > 0) {
-            drawBorder(drawContext, x, y, width, height,
-                    open ? lighten(triggerStyle.getBorderColor(), 60) : triggerStyle.getBorderColor(),
-                    triggerStyle.getBorderWidth());
+            int borderColor = open ? lighten(triggerStyle.getBorderColor(), 60)
+                                   : triggerStyle.getBorderColor();
+            Shapes.drawRoundRectBorder(drawContext, x, y, width, height,
+                    triggerRadius, triggerStyle.getBorderWidth(), borderColor);
         }
 
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
@@ -231,12 +236,12 @@ public class ComboBoxComponent<T> extends UIComponent {
     }
 
     private void renderPopover(DrawContext drawContext) {
-        // Background + border.
-        drawContext.fill(popoverX, popoverY, popoverX + popoverW, popoverY + popoverH,
-                popoverStyle.getBackgroundColor());
+        int popRadius = popoverStyle.getBorderRadius();
+        Shapes.fillRoundRect(drawContext, popoverX, popoverY, popoverW, popoverH,
+                popRadius, popoverStyle.getBackgroundColor());
         if (popoverStyle.getBorderWidth() > 0) {
-            drawBorder(drawContext, popoverX, popoverY, popoverW, popoverH,
-                    popoverStyle.getBorderColor(), popoverStyle.getBorderWidth());
+            Shapes.drawRoundRectBorder(drawContext, popoverX, popoverY, popoverW, popoverH,
+                    popRadius, popoverStyle.getBorderWidth(), popoverStyle.getBorderColor());
         }
 
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
@@ -262,13 +267,6 @@ public class ComboBoxComponent<T> extends UIComponent {
             drawContext.drawText(tr, truncate(tr, label, maxLabelW),
                     textX, textY, rowStyle.getTextColor(), false);
         }
-    }
-
-    private static void drawBorder(DrawContext ctx, int x, int y, int w, int h, int color, int bw) {
-        ctx.fill(x, y, x + w, y + bw, color);
-        ctx.fill(x, y + h - bw, x + w, y + h, color);
-        ctx.fill(x, y, x + bw, y + h, color);
-        ctx.fill(x + w - bw, y, x + w, y + h, color);
     }
 
     private static void drawChevron(DrawContext ctx, int x, int y, boolean up) {

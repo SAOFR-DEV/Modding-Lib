@@ -6,6 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import org.lwjgl.glfw.GLFW;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.state.State;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
@@ -128,11 +129,13 @@ public class TextAreaComponent extends UIComponent {
 
     @Override
     public void render(DrawContext drawContext) {
+        int radius = style.getBorderRadius();
         if (style.getBackgroundColor() != 0) {
-            drawContext.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            Shapes.fillRoundRect(drawContext, x, y, width, height, radius, style.getBackgroundColor());
         }
         if (style.getBorderWidth() > 0) {
-            drawBorder(drawContext);
+            Shapes.drawRoundRectBorder(drawContext, x, y, width, height,
+                    radius, style.getBorderWidth(), style.getBorderColor());
         }
 
         int innerX = x + style.getPadding().left;
@@ -199,15 +202,6 @@ public class TextAreaComponent extends UIComponent {
             int ty = innerY + (row - firstRow) * LINE_HEIGHT;
             ctx.fill(xStart, ty - 1, xEnd, ty + LINE_HEIGHT - 1, DEFAULT_SELECTION_COLOR);
         }
-    }
-
-    private void drawBorder(DrawContext drawContext) {
-        int bw = style.getBorderWidth();
-        int c = style.getBorderColor();
-        drawContext.fill(x, y, x + width, y + bw, c);
-        drawContext.fill(x, y + height - bw, x + width, y + height, c);
-        drawContext.fill(x, y, x + bw, y + height, c);
-        drawContext.fill(x + width - bw, y, x + width, y + height, c);
     }
 
     private int resolvePlaceholderColor() {

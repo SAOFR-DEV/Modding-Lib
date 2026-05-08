@@ -3,6 +3,7 @@ package org.triggersstudio.moddinglib.client.ui.components;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.MinecraftClient;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 
@@ -51,30 +52,24 @@ public class ButtonComponent extends UIComponent {
     @Override
     public void render(DrawContext drawContext) {
         int backgroundColor = style.getBackgroundColor();
-        
-        // Darken on hover
         if (hovered && backgroundColor != 0x00_00_00_00) {
             backgroundColor = darkenColor(backgroundColor);
         }
-        
-        // Draw background
+        int radius = style.getBorderRadius();
+
         if (backgroundColor != 0x00_00_00_00) {
-            drawContext.fill(x, y, x + width, y + height, backgroundColor);
+            Shapes.fillRoundRect(drawContext, x, y, width, height, radius, backgroundColor);
         }
-        
-        // Draw border
         if (style.getBorderWidth() > 0) {
-            drawBorder(drawContext);
+            Shapes.drawRoundRectBorder(drawContext, x, y, width, height,
+                    radius, style.getBorderWidth(), style.getBorderColor());
         }
-        
-        // Draw text centered
+
         TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
         int textWidth = textRenderer.getWidth(label);
         int textHeight = 10;
-        
         int textX = x + (width - textWidth) / 2;
         int textY = y + (height - textHeight) / 2;
-        
         drawContext.drawText(textRenderer, label, textX, textY, style.getTextColor(), false);
     }
     
@@ -95,20 +90,6 @@ public class ButtonComponent extends UIComponent {
     @Override
     public void onMouseMove(double mx, double my) {
         hovered = isPointInside(mx, my);
-    }
-    
-    private void drawBorder(DrawContext drawContext) {
-        int borderWidth = style.getBorderWidth();
-        int color = style.getBorderColor();
-        
-        // Top border
-        drawContext.fill(x, y, x + width, y + borderWidth, color);
-        // Bottom border
-        drawContext.fill(x, y + height - borderWidth, x + width, y + height, color);
-        // Left border
-        drawContext.fill(x, y, x + borderWidth, y + height, color);
-        // Right border
-        drawContext.fill(x + width - borderWidth, y, x + width, y + height, color);
     }
     
     /**

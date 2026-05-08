@@ -1,6 +1,7 @@
 package org.triggersstudio.moddinglib.client.ui.components;
 
 import org.triggersstudio.moddinglib.client.ui.api.Components;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import net.minecraft.client.gui.DrawContext;
@@ -139,16 +140,20 @@ public class SliderComponent extends UIComponent {
         int travel = Math.max(0, width - thumbW);
         int thumbCenterX = x + halfThumb + (int) Math.round(ratio * travel);
 
+        int barRadius = style.getBorderRadius();
+        int trackRadius = trackStyle != null ? trackStyle.getBorderRadius() : barRadius;
+        int thumbRadius = thumbStyle.getBorderRadius();
+
         if (trackColor != 0) {
-            drawContext.fill(x, barY, x + width, barY + barH, trackColor);
+            Shapes.fillRoundRect(drawContext, x, barY, width, barH, trackRadius, trackColor);
         }
         if (fillColor != 0) {
-            drawContext.fill(x, barY, thumbCenterX, barY + barH, fillColor);
+            Shapes.fillRoundRect(drawContext, x, barY, thumbCenterX - x, barH, barRadius, fillColor);
         }
         if (thumbColor != 0) {
             int thumbX = thumbCenterX - halfThumb;
             int thumbY = y + (height - thumbH) / 2;
-            drawContext.fill(thumbX, thumbY, thumbX + thumbW, thumbY + thumbH, thumbColor);
+            Shapes.fillRoundRect(drawContext, thumbX, thumbY, thumbW, thumbH, thumbRadius, thumbColor);
         }
     }
 
@@ -161,20 +166,23 @@ public class SliderComponent extends UIComponent {
         double ratio = currentRatio();
         int halfThumb = thumbH / 2;
         int travel = Math.max(0, height - thumbH);
-        // Convention: max at top, so y decreases with ratio.
         int thumbCenterY = y + height - halfThumb - (int) Math.round(ratio * travel);
 
+        int barRadius = style.getBorderRadius();
+        int trackRadius = trackStyle != null ? trackStyle.getBorderRadius() : barRadius;
+        int thumbRadius = thumbStyle.getBorderRadius();
+
         if (trackColor != 0) {
-            drawContext.fill(barX, y, barX + barW, y + height, trackColor);
+            Shapes.fillRoundRect(drawContext, barX, y, barW, height, trackRadius, trackColor);
         }
         if (fillColor != 0) {
-            // Fill grows up from the bottom to the thumb center.
-            drawContext.fill(barX, thumbCenterY, barX + barW, y + height, fillColor);
+            Shapes.fillRoundRect(drawContext, barX, thumbCenterY, barW, y + height - thumbCenterY,
+                    barRadius, fillColor);
         }
         if (thumbColor != 0) {
             int thumbX = x + (width - thumbW) / 2;
             int thumbY = thumbCenterY - halfThumb;
-            drawContext.fill(thumbX, thumbY, thumbX + thumbW, thumbY + thumbH, thumbColor);
+            Shapes.fillRoundRect(drawContext, thumbX, thumbY, thumbW, thumbH, thumbRadius, thumbColor);
         }
     }
 

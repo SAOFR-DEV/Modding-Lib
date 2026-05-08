@@ -1,6 +1,7 @@
 package org.triggersstudio.moddinglib.client.ui.components;
 
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.state.State;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
@@ -115,11 +116,13 @@ public class TextFieldComponent extends UIComponent {
 
     @Override
     public void render(DrawContext drawContext) {
+        int radius = style.getBorderRadius();
         if (style.getBackgroundColor() != 0) {
-            drawContext.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            Shapes.fillRoundRect(drawContext, x, y, width, height, radius, style.getBackgroundColor());
         }
         if (style.getBorderWidth() > 0) {
-            drawBorder(drawContext);
+            Shapes.drawRoundRectBorder(drawContext, x, y, width, height,
+                    radius, style.getBorderWidth(), style.getBorderColor());
         }
 
         int innerX = x + style.getPadding().left;
@@ -163,15 +166,6 @@ public class TextFieldComponent extends UIComponent {
         } finally {
             drawContext.disableScissor();
         }
-    }
-
-    private void drawBorder(DrawContext drawContext) {
-        int bw = style.getBorderWidth();
-        int c = style.getBorderColor();
-        drawContext.fill(x, y, x + width, y + bw, c);
-        drawContext.fill(x, y + height - bw, x + width, y + height, c);
-        drawContext.fill(x, y, x + bw, y + height, c);
-        drawContext.fill(x + width - bw, y, x + width, y + height, c);
     }
 
     /**
