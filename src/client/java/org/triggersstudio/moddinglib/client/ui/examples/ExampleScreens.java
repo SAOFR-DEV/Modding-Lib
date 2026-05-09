@@ -1181,4 +1181,52 @@ public class ExampleScreens {
 
         return Components.Screen(content, "Toast Demo");
     }
+
+    /**
+     * PlayerRender demo: shows the local player paperdoll-style. The body
+     * follows the cursor (atan-smoothed). The static box on the right has
+     * mouse-tracking disabled — the player there is shown facing the camera.
+     */
+    public static UIScreen createPlayerRenderScreen() {
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "PlayerRender Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Left: follows cursor.   Right: locked front view.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Row(scope -> {
+                    scope.LocalPlayer(
+                            border(0xFF_55_AA_FF, 1).backgroundColor(0xFF_22_22_22)
+                                    .width(180).height(220)
+                                    .margin(0, 12, 0, 0)
+                                    .padding(8)
+                                    .build()
+                    );
+                    scope.PlayerRender(
+                            () -> net.minecraft.client.MinecraftClient.getInstance().player,
+                            border(0xFF_AA_55_55, 1).backgroundColor(0xFF_22_22_22)
+                                    .width(180).height(220)
+                                    .padding(8)
+                                    .build(),
+                            0,        // auto size
+                            false,    // no mouse tracking
+                            0f
+                    );
+                }),
+
+                Components.Text(
+                        "Tip: must be in-world. The supplier returns null in the main menu and the box stays empty.",
+                        fontSize(9).textColor(0xFF_55_55_55).margin(12, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "PlayerRender Demo");
+    }
 }

@@ -1,5 +1,6 @@
 package org.triggersstudio.moddinglib.client.ui.api;
 
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.animation.Direction;
 import org.triggersstudio.moddinglib.client.ui.components.AccordionSection;
@@ -66,6 +67,41 @@ public class ContainerScope {
 
     public void Image(Identifier texture, int textureWidth, int textureHeight, Style style) {
         children.add(Components.Image(texture, textureWidth, textureHeight, style));
+    }
+
+    // --- PlayerRender ---
+    public void PlayerRender(LivingEntity entity) {
+        children.add(Components.PlayerRender(entity));
+    }
+
+    public void PlayerRender(LivingEntity entity, Style style) {
+        children.add(Components.PlayerRender(entity, style));
+    }
+
+    public void PlayerRender(Supplier<LivingEntity> entitySupplier) {
+        children.add(Components.PlayerRender(entitySupplier));
+    }
+
+    public void PlayerRender(Supplier<LivingEntity> entitySupplier, Style style) {
+        children.add(Components.PlayerRender(entitySupplier, style));
+    }
+
+    public void PlayerRender(Supplier<LivingEntity> entitySupplier, Style style,
+                             int entitySize, boolean mouseTracksRotation) {
+        children.add(Components.PlayerRender(entitySupplier, style, entitySize, mouseTracksRotation));
+    }
+
+    public void PlayerRender(Supplier<LivingEntity> entitySupplier, Style style,
+                             int entitySize, boolean mouseTracksRotation, float bottomOffset) {
+        children.add(Components.PlayerRender(entitySupplier, style, entitySize, mouseTracksRotation, bottomOffset));
+    }
+
+    public void LocalPlayer() {
+        children.add(Components.LocalPlayer());
+    }
+
+    public void LocalPlayer(Style style) {
+        children.add(Components.LocalPlayer(style));
     }
 
     public void Row(Consumer<ContainerScope> content) {
