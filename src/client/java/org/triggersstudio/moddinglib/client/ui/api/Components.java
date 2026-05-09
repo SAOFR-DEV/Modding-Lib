@@ -1,5 +1,7 @@
 package org.triggersstudio.moddinglib.client.ui.api;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.animation.Direction;
 import org.triggersstudio.moddinglib.client.ui.animation.Easing;
@@ -112,7 +114,54 @@ public class Components {
     public static UIComponent Image(Identifier texture, int textureWidth, int textureHeight, Style style) {
         return new ImageComponent(texture, textureWidth, textureHeight, style);
     }
-    
+
+    // ===== Player / Entity render =====
+    //
+    // Renders any LivingEntity (player, mob, ...) into the component bounds
+    // using the same scissored 3D path as the vanilla inventory paperdoll.
+    // By default the entity follows the cursor (atan-smoothed); pass
+    // mouseTracksRotation=false to lock the view to the front so the
+    // entity's own bodyYaw/headYaw/pitch fields drive the pose.
+
+    public static UIComponent PlayerRender(LivingEntity entity) {
+        return PlayerRender(() -> entity, Style.DEFAULT);
+    }
+
+    public static UIComponent PlayerRender(LivingEntity entity, Style style) {
+        return PlayerRender(() -> entity, style);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier) {
+        return PlayerRender(entitySupplier, Style.DEFAULT);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier, Style style) {
+        return new PlayerRenderComponent(entitySupplier, style);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier, Style style,
+                                           int entitySize, boolean mouseTracksRotation) {
+        return new PlayerRenderComponent(entitySupplier, style, entitySize, mouseTracksRotation, 0f);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier, Style style,
+                                           int entitySize, boolean mouseTracksRotation, float bottomOffset) {
+        return new PlayerRenderComponent(entitySupplier, style, entitySize, mouseTracksRotation, bottomOffset);
+    }
+
+    /**
+     * Convenience for the local client player. Renders nothing while in the
+     * main menu / before world join (supplier returns {@code null} until the
+     * player exists).
+     */
+    public static UIComponent LocalPlayer() {
+        return LocalPlayer(Style.DEFAULT);
+    }
+
+    public static UIComponent LocalPlayer(Style style) {
+        return new PlayerRenderComponent(() -> MinecraftClient.getInstance().player, style);
+    }
+
     // ===== Container Components =====
     
     /**

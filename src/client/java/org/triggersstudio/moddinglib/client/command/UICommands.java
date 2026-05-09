@@ -43,6 +43,10 @@ public class UICommands {
                             openNextTick(ExampleScreens::createTooltipScreen);
                             return 1;
                         })
+                        .then(literal("playerrender").executes(ctx -> {
+                            openNextTick(ExampleScreens::createPlayerRenderScreen);
+                            return 1;
+                        }))
         );
     }
 }
