@@ -47,6 +47,10 @@ public class UICommands {
                             openNextTick(ExampleScreens::createPlayerRenderScreen);
                             return 1;
                         }))
+                        .then(literal("chart").executes(ctx -> {
+                            openNextTick(ExampleScreens::createChartScreen);
+                            return 1;
+                        }))
         );
     }
 }

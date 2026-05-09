@@ -3,6 +3,9 @@ package org.triggersstudio.moddinglib.client.ui.api;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.animation.Direction;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartOptions;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartSeries;
+import org.triggersstudio.moddinglib.client.ui.chart.PieSlice;
 import org.triggersstudio.moddinglib.client.ui.components.AccordionSection;
 import org.triggersstudio.moddinglib.client.ui.components.UIComponent;
 import org.triggersstudio.moddinglib.client.ui.state.State;
@@ -103,6 +106,22 @@ public class ContainerScope {
     public void LocalPlayer(Style style) {
         children.add(Components.LocalPlayer(style));
     }
+
+    // --- Charts ---
+    public void LineChart(List<ChartSeries> series) { children.add(Components.LineChart(series)); }
+    public void LineChart(List<ChartSeries> series, ChartOptions options) { children.add(Components.LineChart(series, options)); }
+    public void LineChart(List<ChartSeries> series, ChartOptions options, Style style) { children.add(Components.LineChart(series, options, style)); }
+    public void LineChart(List<ChartSeries> series, Style style) { children.add(Components.LineChart(series, style)); }
+
+    public void BarChart(List<ChartSeries> series) { children.add(Components.BarChart(series)); }
+    public void BarChart(List<ChartSeries> series, ChartOptions options) { children.add(Components.BarChart(series, options)); }
+    public void BarChart(List<ChartSeries> series, ChartOptions options, Style style) { children.add(Components.BarChart(series, options, style)); }
+    public void BarChart(List<ChartSeries> series, Style style) { children.add(Components.BarChart(series, style)); }
+
+    public void PieChart(List<PieSlice> slices) { children.add(Components.PieChart(slices)); }
+    public void PieChart(List<PieSlice> slices, ChartOptions options) { children.add(Components.PieChart(slices, options)); }
+    public void PieChart(List<PieSlice> slices, ChartOptions options, Style style) { children.add(Components.PieChart(slices, options, style)); }
+    public void PieChart(List<PieSlice> slices, Style style) { children.add(Components.PieChart(slices, style)); }
 
     public void Row(Consumer<ContainerScope> content) {
         children.add(Components.Row(content));
