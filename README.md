@@ -62,38 +62,43 @@ cd ModdingLib
 
 The compiled JAR files will be available in the `build/libs/` directory.
 
-## Next Steps
+## Roadmap
 
-**UI Components**
-- [x] Add animation support for UIs
-  > - [x] Spring family (default/snappy/bouncy/strong) — needs physics simulation
-  > - [ ] Irregular family (light/heavy) — clarify spec
-  > - [x] Loop / yoyo / onComplete callbacks
-  > - [x] ColorTween (interpolate ARGB)
-- [ ] Add video components for UIs
-- [x] Add progress bars for UIs
-- [x] Add sliders for UIs
-  >  - [x] Slider vertical (ajout d'un flag d'orientation).
-  >  - [x] Support clavier (← → Home End) — nécessite un système de focus.
-  >  - [x] Hover visuel sur le thumb.
-  >  - [x] Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
-- [x] Add player render for UIs
-- [x] Add text input for UIs
-  > - [x] Add text area for UIs multi-lign, filter/max length, Tab cycle focus
-  > - [x] Add onSubmit Enter
-  > - [x] Add blink du caret
-- [x] Add combo box for UIs
-- [x] Add select list for UIs
-- [x] Add color picker for UIs
-- [x] Add toast notifications for UIs
-- [x] Add tooltips for UIs
-- [x] Add pagination for UIs
-- [x] Add accordion for UIs
-- [x] Add Skeleton support for UIs
-- [x] Add spiner for UIs
-- [x] Add calendar for UIs
+See [FEATURES.md](FEATURES.md) for the full living list — shipped components,
+work on side branches, selected priorities, and ideas under discussion.
+
+**Shipped — UI components** (on `master`)
+
+- [x] Animation (Tween / Spring / ColorTween / Fade / Slide / Loop / Yoyo)
+- [x] ProgressBar
+- [x] Slider (int / double / float / long / short, vertical, keyboard, hover)
+- [x] Player render (paperdoll-style entity preview)
+- [x] TextField + TextArea (filter, max length, Tab focus, onSubmit, caret blink)
+- [x] ComboBox
+- [x] SelectList
+- [x] ColorPicker
+- [x] Toast notifications
+- [x] Tooltips
+- [x] Pagination
+- [x] Accordion
+- [x] Skeleton
+- [x] Spinner
+- [x] Calendar
+
+**On a side branch** (not yet merged)
+
+- [~] Video player — `feature/video-player` (FFmpeg, audio, A/V sync, seek, loop)
+
+**Selected priorities** (next, in order)
+
+- [ ] Chart
+- [ ] Markdown renderer
+- [ ] Virtualized list
+- [ ] In-game UI editor
+- [ ] Devmode
 
 **Other**
+
 - [ ] Add channel communication to plugins
 
 ## License
