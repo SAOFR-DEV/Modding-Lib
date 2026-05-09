@@ -5,12 +5,14 @@ import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVCodecParameters;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avformat.AVFormatContext;
+import org.bytedeco.ffmpeg.avformat.AVIOInterruptCB;
 import org.bytedeco.ffmpeg.avformat.AVStream;
 import org.bytedeco.ffmpeg.avutil.AVDictionary;
 import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.DoublePointer;
+import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.lwjgl.system.MemoryUtil;
 
@@ -79,6 +81,18 @@ public final class VideoPlayer implements AutoCloseable {
     private volatile boolean paused = false;
     private final AtomicBoolean ended = new AtomicBoolean(false);
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    /** Flipped by {@link #close()} to make the FFmpeg interrupt callback
+     *  return 1 — that aborts any in-flight blocking I/O (network read,
+     *  protocol open) so the decoder thread exits in milliseconds rather
+     *  than waiting for an OS-level timeout. */
+    private final AtomicBoolean interrupted;
+    /** Strong reference to the JavaCPP function pointer wired into
+     *  {@code formatCtx.interrupt_callback}. Must outlive every
+     *  {@code av_read_frame} / {@code avformat_*} call — if it gets GC'd
+     *  while FFmpeg holds the C function pointer, the next invocation
+     *  segfaults. */
+    @SuppressWarnings("FieldCanBeLocal")
+    private final AVIOInterruptCB.Callback_Pointer interruptCallback;
 
     private final Object frameLock = new Object();
     private final AtomicLong frameVersion = new AtomicLong(0);
@@ -104,7 +118,9 @@ public final class VideoPlayer implements AutoCloseable {
     private VideoPlayer(String source, AVFormatContext formatCtx, int videoStreamIdx,
                         AVCodecContext videoCodecCtx, SwsContext swsCtx,
                         AVFrame decodedFrame, AVFrame rgbFrame, AVPacket packet,
-                        BytePointer rgbBuffer, double timeBase, AudioStream audio) {
+                        BytePointer rgbBuffer, double timeBase, AudioStream audio,
+                        AtomicBoolean interrupted,
+                        AVIOInterruptCB.Callback_Pointer interruptCallback) {
         this.source = source;
         this.formatCtx = formatCtx;
         this.videoStreamIdx = videoStreamIdx;
@@ -120,6 +136,8 @@ public final class VideoPlayer implements AutoCloseable {
         // BGRA bytes read as little-endian int = ARGB packed.
         this.rgbView = rgbBuffer.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
         this.audio = audio;
+        this.interrupted = interrupted;
+        this.interruptCallback = interruptCallback;
     }
 
     private static final AtomicBoolean NETWORK_INIT_DONE = new AtomicBoolean(false);
@@ -155,101 +173,185 @@ public final class VideoPlayer implements AutoCloseable {
      */
     public static VideoPlayer open(String source) {
         ensureNetworkInit();
-        AVFormatContext formatCtx = new AVFormatContext(null);
 
-        // Bump probe + analyze so the H.264 SPS lands inside the analysis
-        // window even on slow / partial streams. Without this, FFmpeg can
-        // return a stream with pix_fmt=NONE and the next sws_getContext
-        // hits an assertion in libswscale.
-        AVDictionary openOpts = new AVDictionary(null);
-        av_dict_set(openOpts, "probesize", "20000000", 0);
-        av_dict_set(openOpts, "analyzeduration", "20000000", 0);
+        // Interrupt machinery — wired BEFORE avformat_open_input so a slow
+        // DNS / TCP connect can be aborted by close() during the open
+        // phase too. The callback returns 1 once `interrupted` flips,
+        // making any in-flight blocking I/O return AVERROR_EXIT instead
+        // of waiting on the OS timeout.
+        AtomicBoolean interrupted = new AtomicBoolean(false);
+        AVIOInterruptCB.Callback_Pointer interruptCallback =
+                new AVIOInterruptCB.Callback_Pointer() {
+                    @Override
+                    public int call(Pointer opaque) {
+                        return interrupted.get() ? 1 : 0;
+                    }
+                };
 
-        int ret = avformat_open_input(formatCtx, source, null, openOpts);
-        av_dict_free(openOpts);
-        if (ret < 0) {
-            throw new VideoOpenException("avformat_open_input failed for " + source + ": " + ffmpegError(ret));
-        }
-        // Mirror the bumped values on the context for find_stream_info too.
-        formatCtx.probesize(20_000_000L);
-        formatCtx.max_analyze_duration(20_000_000L);
-
-        ret = avformat_find_stream_info(formatCtx, (PointerPointer<?>) null);
-        if (ret < 0) {
-            avformat_close_input(formatCtx);
-            throw new VideoOpenException("avformat_find_stream_info failed for " + source + ": " + ffmpegError(ret));
-        }
-        int videoIdx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, (AVCodec) null, 0);
-        if (videoIdx < 0) {
-            avformat_close_input(formatCtx);
-            throw new VideoOpenException("No video stream in " + source + " (av_find_best_stream=" + videoIdx + ")");
-        }
-        AVStream videoStream = formatCtx.streams(videoIdx);
-        AVCodecParameters params = videoStream.codecpar();
-        AVCodec codec = avcodec_find_decoder(params.codec_id());
-        if (codec == null) {
-            avformat_close_input(formatCtx);
-            throw new VideoOpenException("Unsupported codec id=" + params.codec_id());
-        }
-        AVCodecContext videoCodecCtx = avcodec_alloc_context3(codec);
-        ret = avcodec_parameters_to_context(videoCodecCtx, params);
-        if (ret < 0) {
-            avcodec_free_context(videoCodecCtx);
-            avformat_close_input(formatCtx);
-            throw new VideoOpenException("avcodec_parameters_to_context failed: " + ffmpegError(ret));
-        }
-        ret = avcodec_open2(videoCodecCtx, codec, (AVDictionary) null);
-        if (ret < 0) {
-            avcodec_free_context(videoCodecCtx);
-            avformat_close_input(formatCtx);
-            throw new VideoOpenException("avcodec_open2 failed: " + ffmpegError(ret));
-        }
-        int w = videoCodecCtx.width();
-        int h = videoCodecCtx.height();
-        int srcPixFmt = videoCodecCtx.pix_fmt();
-        if (srcPixFmt == AV_PIX_FMT_NONE) {
-            avcodec_free_context(videoCodecCtx);
-            avformat_close_input(formatCtx);
-            throw new VideoOpenException("Stream pix_fmt is unspecified — try a longer / less truncated source");
-        }
-        // Output BGRA so the in-memory bytes (B,G,R,A) read back as a
-        // little-endian 32-bit int give us exactly 0xAARRGGBB = the ARGB
-        // that NativeImage.setColorArgb expects. Avoids per-pixel shuffling.
-        SwsContext swsCtx = sws_getContext(
-                w, h, srcPixFmt,
-                w, h, AV_PIX_FMT_BGRA,
-                SWS_BILINEAR, null, null, (DoublePointer) null);
-        if (swsCtx == null) {
-            avcodec_free_context(videoCodecCtx);
-            avformat_close_input(formatCtx);
-            throw new VideoOpenException("sws_getContext failed (src pix_fmt=" + srcPixFmt + ")");
-        }
-        AVFrame decodedFrame = av_frame_alloc();
-        AVFrame rgbFrame = av_frame_alloc();
-        AVPacket packet = av_packet_alloc();
-        int byteCount = av_image_get_buffer_size(AV_PIX_FMT_BGRA, w, h, 1);
-        BytePointer rgbBuffer = new BytePointer(av_malloc(byteCount));
-        rgbBuffer.capacity(byteCount);
-        av_image_fill_arrays(rgbFrame.data(), rgbFrame.linesize(),
-                rgbBuffer, AV_PIX_FMT_BGRA, w, h, 1);
-        double timeBase = av_q2d(videoStream.time_base());
-
-        // Optional audio stream — failure to open audio is non-fatal; the
-        // video keeps playing silently. We pick the best audio stream that
-        // shares a program with the chosen video, matching FFmpeg defaults.
+        // Locals tracked for cleanup-on-failure. Each becomes non-null as
+        // its FFmpeg allocator succeeds; the catch block frees in reverse
+        // order. fmtOpened tracks whether avformat_open_input has reached
+        // the point where avformat_close_input is the right teardown
+        // (FFmpeg already frees formatCtx itself when open fails).
+        AVFormatContext formatCtx = null;
+        AVCodecContext videoCodecCtx = null;
+        SwsContext swsCtx = null;
+        AVFrame decodedFrame = null;
+        AVFrame rgbFrame = null;
+        AVPacket packet = null;
+        BytePointer rgbBuffer = null;
         AudioStream audio = null;
-        int audioIdx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_AUDIO, -1, videoIdx, (AVCodec) null, 0);
-        if (audioIdx >= 0) {
-            try {
-                audio = AudioStream.open(formatCtx.streams(audioIdx), audioIdx);
-            } catch (Throwable t) {
-                // Swallow — better to play silent video than crash the open.
-                audio = null;
-            }
-        }
+        AVDictionary openOpts = null;
+        boolean fmtOpened = false;
 
-        return new VideoPlayer(source, formatCtx, videoIdx, videoCodecCtx, swsCtx,
-                decodedFrame, rgbFrame, packet, rgbBuffer, timeBase, audio);
+        try {
+            // avformat_alloc_context allocates the actual AVFormatContext
+            // struct so we can set the interrupt callback on it BEFORE the
+            // open. `new AVFormatContext(null)` only wraps a null native
+            // pointer — accessing any field on that throws "The pointer
+            // address is null". avformat_open_input still works on a
+            // pre-allocated context (it just uses it instead of
+            // allocating its own).
+            formatCtx = avformat_alloc_context();
+            if (formatCtx == null || formatCtx.isNull()) {
+                formatCtx = null;
+                throw new VideoOpenException("avformat_alloc_context returned null");
+            }
+            formatCtx.interrupt_callback().callback(interruptCallback);
+
+            // Bump probe + analyze so the H.264 SPS lands inside the analysis
+            // window even on slow / partial streams. Without this, FFmpeg can
+            // return a stream with pix_fmt=NONE and the next sws_getContext
+            // hits an assertion in libswscale.
+            openOpts = new AVDictionary(null);
+            av_dict_set(openOpts, "probesize", "20000000", 0);
+            av_dict_set(openOpts, "analyzeduration", "20000000", 0);
+            // Network read timeouts (microseconds). Different protocols
+            // honor different keys, so set all three; unknown keys are
+            // ignored. 5s is generous enough to absorb a normal RTT spike
+            // without sitting on a dead socket forever.
+            av_dict_set(openOpts, "rw_timeout", "5000000", 0);
+            av_dict_set(openOpts, "stimeout",  "5000000", 0);
+            av_dict_set(openOpts, "timeout",   "5000000", 0);
+
+            int ret = avformat_open_input(formatCtx, source, null, openOpts);
+            if (ret < 0) {
+                // FFmpeg already freed formatCtx on open failure — null our
+                // ref so the catch block doesn't try to free it again.
+                formatCtx = null;
+                throw new VideoOpenException("avformat_open_input failed for " + source + ": " + ffmpegError(ret));
+            }
+            fmtOpened = true;
+
+            // Mirror the bumped values on the context for find_stream_info too.
+            formatCtx.probesize(20_000_000L);
+            formatCtx.max_analyze_duration(20_000_000L);
+
+            ret = avformat_find_stream_info(formatCtx, (PointerPointer<?>) null);
+            if (ret < 0) {
+                throw new VideoOpenException("avformat_find_stream_info failed for " + source + ": " + ffmpegError(ret));
+            }
+            int videoIdx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, (AVCodec) null, 0);
+            if (videoIdx < 0) {
+                throw new VideoOpenException("No video stream in " + source + " (av_find_best_stream=" + videoIdx + ")");
+            }
+            AVStream videoStream = formatCtx.streams(videoIdx);
+            AVCodecParameters params = videoStream.codecpar();
+            AVCodec codec = avcodec_find_decoder(params.codec_id());
+            if (codec == null) {
+                throw new VideoOpenException("Unsupported codec id=" + params.codec_id());
+            }
+            videoCodecCtx = avcodec_alloc_context3(codec);
+            if (videoCodecCtx == null) {
+                throw new VideoOpenException("avcodec_alloc_context3 returned null");
+            }
+            ret = avcodec_parameters_to_context(videoCodecCtx, params);
+            if (ret < 0) {
+                throw new VideoOpenException("avcodec_parameters_to_context failed: " + ffmpegError(ret));
+            }
+            ret = avcodec_open2(videoCodecCtx, codec, (AVDictionary) null);
+            if (ret < 0) {
+                throw new VideoOpenException("avcodec_open2 failed: " + ffmpegError(ret));
+            }
+            int w = videoCodecCtx.width();
+            int h = videoCodecCtx.height();
+            int srcPixFmt = videoCodecCtx.pix_fmt();
+            if (srcPixFmt == AV_PIX_FMT_NONE) {
+                throw new VideoOpenException("Stream pix_fmt is unspecified — try a longer / less truncated source");
+            }
+            // Output BGRA so the in-memory bytes (B,G,R,A) read back as a
+            // little-endian 32-bit int give us exactly 0xAARRGGBB = the ARGB
+            // that NativeImage.setColorArgb expects. Avoids per-pixel shuffling.
+            swsCtx = sws_getContext(
+                    w, h, srcPixFmt,
+                    w, h, AV_PIX_FMT_BGRA,
+                    SWS_BILINEAR, null, null, (DoublePointer) null);
+            if (swsCtx == null) {
+                throw new VideoOpenException("sws_getContext failed (src pix_fmt=" + srcPixFmt + ")");
+            }
+            decodedFrame = av_frame_alloc();
+            rgbFrame = av_frame_alloc();
+            packet = av_packet_alloc();
+            if (decodedFrame == null || rgbFrame == null || packet == null) {
+                throw new VideoOpenException("av_frame_alloc / av_packet_alloc returned null");
+            }
+            int byteCount = av_image_get_buffer_size(AV_PIX_FMT_BGRA, w, h, 1);
+            BytePointer rawBuf = new BytePointer(av_malloc(byteCount));
+            if (rawBuf.isNull()) {
+                throw new VideoOpenException("av_malloc(" + byteCount + ") returned null");
+            }
+            rgbBuffer = rawBuf;
+            rgbBuffer.capacity(byteCount);
+            av_image_fill_arrays(rgbFrame.data(), rgbFrame.linesize(),
+                    rgbBuffer, AV_PIX_FMT_BGRA, w, h, 1);
+            double timeBase = av_q2d(videoStream.time_base());
+
+            // Optional audio stream — failure to open audio is non-fatal; the
+            // video keeps playing silently. We pick the best audio stream that
+            // shares a program with the chosen video, matching FFmpeg defaults.
+            int audioIdx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_AUDIO, -1, videoIdx, (AVCodec) null, 0);
+            if (audioIdx >= 0) {
+                try {
+                    audio = AudioStream.open(formatCtx.streams(audioIdx), audioIdx);
+                } catch (Throwable t) {
+                    // Swallow — better to play silent video than crash the open.
+                    audio = null;
+                }
+            }
+
+            return new VideoPlayer(source, formatCtx, videoIdx, videoCodecCtx, swsCtx,
+                    decodedFrame, rgbFrame, packet, rgbBuffer, timeBase, audio,
+                    interrupted, interruptCallback);
+
+        } catch (Throwable t) {
+            // Reverse-order cleanup of partial allocations — anything that
+            // constructed successfully gets freed; anything that didn't is
+            // still null and the guard skips it.
+            if (audio != null) {
+                try { audio.close(); } catch (Throwable ignored) {}
+            }
+            if (rgbBuffer != null) av_free(rgbBuffer);
+            if (rgbFrame != null) av_frame_free(rgbFrame);
+            if (decodedFrame != null) av_frame_free(decodedFrame);
+            if (packet != null) av_packet_free(packet);
+            if (swsCtx != null) sws_freeContext(swsCtx);
+            if (videoCodecCtx != null) avcodec_free_context(videoCodecCtx);
+            if (formatCtx != null) {
+                // close_input both closes the opened input AND frees the
+                // context; free_context only frees the allocated struct.
+                // Pick based on whether we got past avformat_open_input.
+                if (fmtOpened) {
+                    avformat_close_input(formatCtx);
+                } else {
+                    avformat_free_context(formatCtx);
+                }
+            }
+            if (t instanceof RuntimeException re) throw re;
+            if (t instanceof Error e) throw e;
+            throw new VideoOpenException("VideoPlayer.open(" + source + ") failed: " + t.getMessage());
+        } finally {
+            if (openOpts != null) av_dict_free(openOpts);
+        }
     }
 
     public String getSource() { return source; }
@@ -627,10 +729,26 @@ public final class VideoPlayer implements AutoCloseable {
     @Override
     public synchronized void close() {
         if (!closed.compareAndSet(false, true)) return;
+        // Flip the interrupt flag FIRST. The decoder thread may be parked
+        // inside av_read_frame() on a slow / dead network read; the
+        // FFmpeg interrupt callback (wired in open()) will return 1 on
+        // its next poll and that call returns AVERROR_EXIT instead of
+        // sitting on an OS timeout. Without this, the join below could
+        // race the native call: Java would free formatCtx while the C
+        // side was still reading from it → segfault.
+        interrupted.set(true);
         running.set(false);
         if (decoderThread != null) {
             decoderThread.interrupt();
-            try { decoderThread.join(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            try {
+                // 5s is a backstop, not the expected wait — with the
+                // interrupt callback the thread typically exits within
+                // tens of milliseconds. If it ever blows the timeout
+                // we'd rather log + leak than hard-abort the JVM.
+                decoderThread.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             decoderThread = null;
         }
         // Audio first — its codec context lives off the format context, but

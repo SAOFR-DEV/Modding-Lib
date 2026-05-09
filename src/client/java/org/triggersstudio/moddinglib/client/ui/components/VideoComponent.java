@@ -65,10 +65,15 @@ public class VideoComponent extends UIComponent {
 
     @Override
     public void onDetach() {
-        if (texture != null) {
-            texture.close();
-            texture = null;
+        if (textureId != null) {
+            // destroyTexture removes the registration from TextureManager AND
+            // closes the underlying texture/NativeImage. Calling texture.close()
+            // afterwards would be a double-free; calling close() *without*
+            // destroyTexture leaves a dangling map entry per screen reopen,
+            // which the auditor flagged as a VRAM leak.
+            MinecraftClient.getInstance().getTextureManager().destroyTexture(textureId);
             textureId = null;
+            texture = null;
         }
         if (ownsPlayer) {
             player.close();
