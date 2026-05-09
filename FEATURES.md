@@ -31,6 +31,7 @@ Legend: `[x]` shipped on `master` · `[~]` on a side branch, not yet merged ·
 - [x] **Tooltip** — hover-delayed popup, multi-line, edge-flip, custom style
 - [x] **Toast** — global stack (info/success/warning/error/custom), slide-in / fade-out
 - [x] **PlayerRender** — wraps `InventoryScreen.drawEntity`, cursor-tracked rotation or fixed front view, supplier-based for live entity swap
+- [x] **Chart** — LineChart / BarChart / PieChart, multi-series, reactive suppliers, hover tooltip, configurable axis / legend / value formatter
 
 ## Shipped — animation
 
@@ -55,6 +56,7 @@ Legend: `[x]` shipped on `master` · `[~]` on a side branch, not yet merged ·
 
 - [x] **`/demomenu`** — opens the tooltip demo
 - [x] **`/demomenu playerrender`** — opens the player render demo
+- [x] **`/demomenu chart`** — opens the chart demo
 - [x] **DebugOverlay** — bounds + names of all components in tree
 
 ---
@@ -77,7 +79,6 @@ Legend: `[x]` shipped on `master` · `[~]` on a side branch, not yet merged ·
 
 User-picked next items, in priority order:
 
-- [ ] **Chart** — line / bar / pie, axis labels, optional legend; reactive series via `State<List<Double>>` or `DoubleSupplier`. Use case: stats, mana / XP curves, debug graphs.
 - [ ] **Markdown renderer** — basic CommonMark subset (headings, bold/italic, links, code, lists, hr). Use case: changelogs, in-game help.
 - [ ] **Virtualized list** — render only the rows in the viewport; works with `Supplier<Integer> rowCount` + `IntFunction<UIComponent> rowFactory`. Required once lists exceed a few hundred items.
 - [ ] **In-game UI editor** — drag-and-drop screen designer that emits `Components.X(...)` source. Big chunk of work but very high payoff for downstream modders.

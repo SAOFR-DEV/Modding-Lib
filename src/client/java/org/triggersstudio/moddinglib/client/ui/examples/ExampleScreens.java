@@ -1,10 +1,17 @@
 package org.triggersstudio.moddinglib.client.ui.examples;
 
 import org.triggersstudio.moddinglib.client.ui.api.Components;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartOptions;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartSeries;
+import org.triggersstudio.moddinglib.client.ui.chart.PieSlice;
 import org.triggersstudio.moddinglib.client.ui.components.UIComponent;
 import org.triggersstudio.moddinglib.client.ui.screen.UIScreen;
 import org.triggersstudio.moddinglib.client.ui.state.State;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import static org.triggersstudio.moddinglib.client.ui.styling.Styles.*;
 
@@ -1228,5 +1235,98 @@ public class ExampleScreens {
         );
 
         return Components.Screen(content, "PlayerRender Demo");
+    }
+
+    /**
+     * Chart demo: line / bar / pie side by side, all sharing the same
+     * mutable data. The "Randomize" button shifts every value, and every
+     * chart re-reads through its supplier so the change is immediate.
+     */
+    public static UIScreen createChartScreen() {
+        // Mutable backing lists — the suppliers below close over them, so
+        // we mutate in place and the next render frame picks the new
+        // values up automatically.
+        List<Double> lineA = new ArrayList<>(List.of(2.0, 4.0, 3.0, 6.0, 5.0, 8.0, 7.0, 9.0, 8.0, 11.0));
+        List<Double> lineB = new ArrayList<>(List.of(5.0, 4.0, 6.0, 4.0, 7.0, 6.0, 8.0, 7.0, 9.0, 9.0));
+        List<Double> barA = new ArrayList<>(List.of(12.0, 19.0, 7.0, 15.0, 10.0));
+        List<Double> barB = new ArrayList<>(List.of(8.0, 14.0, 11.0, 9.0, 17.0));
+        double[] pie = new double[]{30, 22, 18, 10};
+        Random rng = new Random();
+        Runnable randomize = () -> {
+            for (int i = 0; i < lineA.size(); i++) lineA.set(i, 2 + rng.nextDouble() * 10);
+            for (int i = 0; i < lineB.size(); i++) lineB.set(i, 2 + rng.nextDouble() * 10);
+            for (int i = 0; i < barA.size(); i++) barA.set(i, 5 + rng.nextDouble() * 20);
+            for (int i = 0; i < barB.size(); i++) barB.set(i, 5 + rng.nextDouble() * 20);
+            for (int i = 0; i < pie.length; i++) pie[i] = 5 + rng.nextDouble() * 30;
+        };
+
+        ChartOptions lineOpts = ChartOptions.builder()
+                .xLabels(List.of("M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"))
+                .build();
+        ChartOptions barOpts = ChartOptions.builder()
+                .xLabels(List.of("Q1", "Q2", "Q3", "Q4", "Q5"))
+                .build();
+        ChartOptions pieOpts = ChartOptions.builder()
+                .valueFormatter(v -> String.format("%.0f", v))
+                .build();
+
+        UIComponent content = Components.Column(
+                padding(16).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Chart Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+                Components.Text(
+                        "Hover any chart for value tooltips. Click Randomize to refresh — suppliers re-read every frame.",
+                        fontSize(9).textColor(0xFF_77_77_77).margin(6, 0, 8, 0).build()
+                ),
+
+                Components.Button(
+                        "Randomize",
+                        backgroundColor(0xFF_55_AA_FF).textColor(WHITE)
+                                .height(22).width(120).margin(0, 0, 12, 0)
+                                .onClick((mx, my, btn) -> randomize.run())
+                                .build()
+                ),
+
+                Components.Row(scope -> {
+                    scope.LineChart(
+                            List.of(
+                                    ChartSeries.of("XP", 0xFF_55_AA_FF, () -> lineA),
+                                    ChartSeries.of("Mana", 0xFF_FF_AA_55, () -> lineB)
+                            ),
+                            lineOpts,
+                            backgroundColor(0xFF_22_22_22)
+                                    .width(280).height(180).padding(6).margin(0, 8, 0, 0)
+                                    .build()
+                    );
+                    scope.BarChart(
+                            List.of(
+                                    ChartSeries.of("Wood", 0xFF_55_DD_88, () -> barA),
+                                    ChartSeries.of("Stone", 0xFF_FF_55_55, () -> barB)
+                            ),
+                            barOpts,
+                            backgroundColor(0xFF_22_22_22)
+                                    .width(280).height(180).padding(6)
+                                    .build()
+                    );
+                }),
+
+                Components.PieChart(
+                        List.of(
+                                PieSlice.of("Iron", 0xFF_55_AA_FF, () -> pie[0]),
+                                PieSlice.of("Gold", 0xFF_FF_DD_55, () -> pie[1]),
+                                PieSlice.of("Diamond", 0xFF_55_DD_DD, () -> pie[2]),
+                                PieSlice.of("Netherite", 0xFF_FF_55_AA, () -> pie[3])
+                        ),
+                        pieOpts,
+                        backgroundColor(0xFF_22_22_22)
+                                .width(380).height(180).padding(8).margin(12, 0, 0, 0)
+                                .build()
+                )
+        );
+
+        return Components.Screen(content, "Chart Demo");
     }
 }

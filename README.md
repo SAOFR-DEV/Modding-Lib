@@ -73,6 +73,7 @@ work on side branches, selected priorities, and ideas under discussion.
 - [x] ProgressBar
 - [x] Slider (int / double / float / long / short, vertical, keyboard, hover)
 - [x] Player render (paperdoll-style entity preview)
+- [x] Chart (line / bar / pie, multi-series, hover tooltip)
 - [x] TextField + TextArea (filter, max length, Tab focus, onSubmit, caret blink)
 - [x] ComboBox
 - [x] SelectList
@@ -91,7 +92,6 @@ work on side branches, selected priorities, and ideas under discussion.
 
 **Selected priorities** (next, in order)
 
-- [ ] Chart
 - [ ] Markdown renderer
 - [ ] Virtualized list
 - [ ] In-game UI editor
