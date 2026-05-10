@@ -3,7 +3,9 @@ package org.triggersstudio.moddinglib.client.ui.components;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.MinecraftClient;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
 import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
+import org.triggersstudio.moddinglib.client.ui.styling.Paint;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 
@@ -51,14 +53,20 @@ public class ButtonComponent extends UIComponent {
     
     @Override
     public void render(DrawContext drawContext) {
-        int backgroundColor = style.getBackgroundColor();
-        if (hovered && backgroundColor != 0x00_00_00_00) {
-            backgroundColor = darkenColor(backgroundColor);
+        Paint bgPaint = style.getBackgroundPaint();
+        int legacyColor = style.getBackgroundColor();
+
+        // Hover-darken behavior is preserved for solid fills (the historical
+        // case). For gradient backgrounds we leave the paint as-is — darkening
+        // each stop would require a Paint.map(...) helper we don't have yet,
+        // and most gradient buttons would prefer a styled overlay anyway.
+        if (hovered && bgPaint instanceof Paint.Solid solid && solid.argb() != 0) {
+            bgPaint = Paint.solid(darkenColor(solid.argb()));
         }
         int radius = style.getBorderRadius();
 
-        if (backgroundColor != 0x00_00_00_00) {
-            Shapes.fillRoundRect(drawContext, x, y, width, height, radius, backgroundColor);
+        if (legacyColor != 0x00_00_00_00) {
+            PaintRenderer.fillRect(drawContext, x, y, width, height, bgPaint, radius);
         }
         if (style.getBorderWidth() > 0) {
             Shapes.drawRoundRectBorder(drawContext, x, y, width, height,

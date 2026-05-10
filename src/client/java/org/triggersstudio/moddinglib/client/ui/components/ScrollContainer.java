@@ -1,6 +1,7 @@
 package org.triggersstudio.moddinglib.client.ui.components;
 
 import net.minecraft.client.gui.DrawContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.layout.LayoutType;
 
@@ -34,7 +35,8 @@ public abstract class ScrollContainer extends Container {
     @Override
     public void render(DrawContext drawContext) {
         if (style.getBackgroundColor() != 0x00_00_00_00) {
-            drawContext.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            PaintRenderer.fillRect(drawContext, x, y, width, height,
+                    style.getBackgroundPaint(), style.getBorderRadius());
         }
 
         enableScissor(drawContext);

@@ -79,6 +79,7 @@ Legend: `[x]` shipped on `master` · `[~]` on a side branch, not yet merged ·
 
 User-picked next items, in priority order:
 
+- [ ] **Gradient paints** — `Style.background(Paint)` / `textFill(Paint)` with `Paint.LinearGradient` (angle + multi-stop), `Paint.RadialGradient`, `Paint.ConicGradient`. Backwards-compatible: `backgroundColor(int)` keeps working. Per-glyph color sampling for gradient text, with `bold` rendered via vanilla double-draw.
 - [ ] **Custom fonts** — `Style.font(Identifier)` forwarding to Minecraft's resource-pack font system (TTF supported natively by MC). API only: the user supplies the TTF and the `assets/<modid>/font/X.json` provider in their own resource pack.
 - [ ] **Markdown renderer** — basic CommonMark subset (headings, bold/italic, links, code, lists, hr). Use case: changelogs, in-game help.
 - [ ] **Virtualized list** — render only the rows in the viewport; works with `Supplier<Integer> rowCount` + `IntFunction<UIComponent> rowFactory`. Required once lists exceed a few hundred items.

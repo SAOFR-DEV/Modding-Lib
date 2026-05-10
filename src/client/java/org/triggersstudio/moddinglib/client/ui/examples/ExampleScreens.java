@@ -7,6 +7,7 @@ import org.triggersstudio.moddinglib.client.ui.chart.PieSlice;
 import org.triggersstudio.moddinglib.client.ui.components.UIComponent;
 import org.triggersstudio.moddinglib.client.ui.screen.UIScreen;
 import org.triggersstudio.moddinglib.client.ui.state.State;
+import org.triggersstudio.moddinglib.client.ui.styling.Paint;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
 import java.util.ArrayList;
@@ -1328,5 +1329,91 @@ public class ExampleScreens {
         );
 
         return Components.Screen(content, "Chart Demo");
+    }
+
+    /**
+     * Showcases the {@link Paint} API: linear (multi-stop), radial, and conic
+     * gradient backgrounds, plus a gradient text title sampled per glyph.
+     * Same {@code Style.background(Paint)} / {@code textFill(Paint)} entry
+     * points cover every gradient shape.
+     */
+    public static UIScreen createGradientScreen() {
+        Paint multistop = Paint.linear(45,
+                Paint.stop(0.00, 0xFF_FF_00_00),
+                Paint.stop(0.10, 0xFF_FF_AA_00),
+                Paint.stop(0.40, 0xFF_FF_FF_00),
+                Paint.stop(0.70, 0xFF_00_FF_55),
+                Paint.stop(0.85, 0xFF_00_AA_FF),
+                Paint.stop(1.00, 0xFF_AA_00_FF));
+
+        Paint radial = Paint.radial(0.5, 0.5, 0.7, 0.7,
+                Paint.stop(0.0, 0xFF_FF_FF_FF),
+                Paint.stop(0.4, 0xFF_55_AA_FF),
+                Paint.stop(1.0, 0xFF_11_22_44));
+
+        Paint conic = Paint.conic(0,
+                Paint.stop(0.00, 0xFF_FF_55_55),
+                Paint.stop(0.25, 0xFF_FF_DD_55),
+                Paint.stop(0.50, 0xFF_55_FF_88),
+                Paint.stop(0.75, 0xFF_55_AA_FF),
+                Paint.stop(1.00, 0xFF_FF_55_55));
+
+        Paint titleGradient = Paint.linear(0,
+                Paint.stop(0.0, 0xFF_FF_55_55),
+                Paint.stop(0.5, 0xFF_FF_DD_55),
+                Paint.stop(1.0, 0xFF_55_AA_FF));
+
+        UIComponent content = Components.Column(
+                padding(16).backgroundColor(0xFF_15_15_15).build(),
+
+                Components.Text(
+                        "Gradient Paints",
+                        textFill(titleGradient).fontSize(24).bold().build()
+                ),
+                Components.Text(
+                        "Linear (multi-stop), radial, and conic — same Style.background(Paint) for all three. The title above is the same Paint API piped into textFill(...).",
+                        fontSize(10).textColor(0xFF_88_88_88).margin(4, 0, 12, 0).build()
+                ),
+
+                // Three gradient swatches, side by side. Each "swatch" is an
+                // empty Column whose background paint does all the visual work.
+                Components.Row(scope -> {
+                    scope.Column(scope2 -> {
+                        scope2.Text("Linear, multi-stop, 45°",
+                                fontSize(10).textColor(WHITE).margin(0, 0, 6, 0).build());
+                        scope2.Column(
+                                background(multistop).width(220).height(120).borderRadius(8).build(),
+                                inner -> {});
+                    });
+
+                    scope.Column(margin(0, 12).build(), scope2 -> {
+                        scope2.Text("Radial, soft spotlight",
+                                fontSize(10).textColor(WHITE).margin(0, 0, 6, 0).build());
+                        scope2.Column(
+                                background(radial).width(220).height(120).borderRadius(8).build(),
+                                inner -> {});
+                    });
+
+                    scope.Column(scope2 -> {
+                        scope2.Text("Conic, sweeping CW from 0°",
+                                fontSize(10).textColor(WHITE).margin(0, 0, 6, 0).build());
+                        scope2.Column(
+                                background(conic).width(220).height(120).borderRadius(8).build(),
+                                inner -> {});
+                    });
+                }),
+
+                // Demonstrate gradient + bold + (optional) custom font.
+                Components.Text(
+                        "Gradient text + bold (per-glyph sampling, vanilla bold preserved)",
+                        textFill(multistop).fontSize(14).bold().margin(20, 0, 0, 0).build()
+                ),
+                Components.Text(
+                        "Every codepoint is drawn separately with its own sampled color — bold just routes through the standard §l mechanism on each glyph.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(4, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "Gradient Demo");
     }
 }

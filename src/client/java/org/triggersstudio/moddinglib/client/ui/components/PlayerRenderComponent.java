@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.entity.LivingEntity;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
@@ -70,7 +71,8 @@ public class PlayerRenderComponent extends UIComponent {
     @Override
     public void render(DrawContext ctx) {
         if (style.getBackgroundColor() != 0) {
-            ctx.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            PaintRenderer.fillRect(ctx, x, y, width, height,
+                    style.getBackgroundPaint(), style.getBorderRadius());
         }
 
         LivingEntity entity = entitySupplier.get();

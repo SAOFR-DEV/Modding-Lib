@@ -3,6 +3,7 @@ package org.triggersstudio.moddinglib.client.ui.components;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.util.Identifier;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 
@@ -50,7 +51,8 @@ public class ImageComponent extends UIComponent {
     public void render(DrawContext drawContext) {
         // Draw background
         if (style.getBackgroundColor() != 0x00_00_00_00) {
-            drawContext.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            PaintRenderer.fillRect(drawContext, x, y, width, height,
+                    style.getBackgroundPaint(), style.getBorderRadius());
         }
 
         // Draw texture

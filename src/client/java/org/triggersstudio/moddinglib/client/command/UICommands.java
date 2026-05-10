@@ -51,6 +51,10 @@ public class UICommands {
                             openNextTick(ExampleScreens::createChartScreen);
                             return 1;
                         }))
+                        .then(literal("gradient").executes(ctx -> {
+                            openNextTick(ExampleScreens::createGradientScreen);
+                            return 1;
+                        }))
         );
     }
 }
