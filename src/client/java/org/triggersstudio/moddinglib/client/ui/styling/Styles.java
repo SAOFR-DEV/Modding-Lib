@@ -1,5 +1,6 @@
 package org.triggersstudio.moddinglib.client.ui.styling;
 
+import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.events.ClickHandler;
 
 /**
@@ -111,6 +112,10 @@ public class Styles {
 
     public static Style.Builder placeholderColor(int color) {
         return Style.placeholderColor(color);
+    }
+
+    public static Style.Builder font(Identifier font) {
+        return Style.font(font);
     }
 }
 

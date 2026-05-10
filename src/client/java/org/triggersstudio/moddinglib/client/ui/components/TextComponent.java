@@ -3,6 +3,9 @@ package org.triggersstudio.moddinglib.client.ui.components;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 
@@ -32,11 +35,30 @@ public class TextComponent extends UIComponent {
         return s != null ? s : "";
     }
 
+    /**
+     * Build the {@link Text} payload that gets passed to the renderer:
+     * a literal carrying the resolved string, with the font from
+     * {@link Style#getFont()} applied when set so the vanilla
+     * {@code TextRenderer} routes glyph lookup through the right font
+     * provider.
+     */
+    private Text styledText(String content) {
+        MutableText t = Text.literal(content);
+        Identifier font = style.getFont();
+        if (font != null) {
+            t = t.fillStyle(net.minecraft.text.Style.EMPTY.withFont(font));
+        }
+        return t;
+    }
+
     @Override
     public MeasureResult measure(int maxWidth, int maxHeight) {
         TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
 
-        int textWidth = textRenderer.getWidth(resolve());
+        // Width must be measured through the same Text path the renderer
+        // uses, otherwise a custom font with non-vanilla glyph widths
+        // would lay out at the wrong size.
+        int textWidth = textRenderer.getWidth(styledText(resolve()));
         int textHeight = 10; // Approximate height
 
         int totalWidth = textWidth + style.getPadding().getHorizontal();
@@ -77,10 +99,13 @@ public class TextComponent extends UIComponent {
 
         String displayText = resolve();
         if (style.isBold()) {
-            // Minecraft doesn't have native bold text, so we'll render twice slightly offset
-            drawContext.drawText(textRenderer, "§l" + displayText, textX, textY, style.getTextColor(), true);
+            // Bold via §l — works the same for vanilla and resource-pack
+            // fonts. We send the formatting code as a sibling so the
+            // font-style we baked into the parent still propagates.
+            MutableText bold = Text.literal("§l").append(styledText(displayText));
+            drawContext.drawText(textRenderer, bold, textX, textY, style.getTextColor(), true);
         } else {
-            drawContext.drawText(textRenderer, displayText, textX, textY, style.getTextColor(), false);
+            drawContext.drawText(textRenderer, styledText(displayText), textX, textY, style.getTextColor(), false);
         }
     }
 
