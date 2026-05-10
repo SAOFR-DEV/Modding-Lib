@@ -75,6 +75,7 @@ public final class AudioStream implements AutoCloseable {
     private AVChannelLayout outLayout;
     private BytePointer convertOutBuffer;
     private final int convertOutCapacity;
+    private final ByteBuffer transferBuffer;
 
     // OpenAL state — only touched from render thread (via pump()).
     private int alSource = -1;
@@ -120,6 +121,7 @@ public final class AudioStream implements AutoCloseable {
         this.outLayout = outLayout;
         this.convertOutBuffer = convertOutBuffer;
         this.convertOutCapacity = convertOutCapacity;
+        this.transferBuffer = ByteBuffer.allocateDirect(convertOutCapacity).order(ByteOrder.nativeOrder());
     }
 
     /**
@@ -277,10 +279,17 @@ public final class AudioStream implements AutoCloseable {
         // Pump pending chunks into AL.
         while (!freeAlBuffers.isEmpty() && !pendingChunks.isEmpty()) {
             PendingChunk chunk = pendingChunks.pollFirst();
+
+            // Defensive: chunk size and transferBuffer capacity share the
+            // same convertOutCapacity bound, but if that invariant ever
+            // drifts, drop the chunk — queuing without writing would replay
+            // stale PCM under fresh PTS bookkeeping (silent A/V drift).
+            if (chunk.pcm.length > transferBuffer.capacity()) continue;
+
             int bufId = freeAlBuffers.pollFirst();
-            ByteBuffer bb = ByteBuffer.allocateDirect(chunk.pcm.length).order(ByteOrder.nativeOrder());
-            bb.put(chunk.pcm).flip();
-            AL10.alBufferData(bufId, AL10.AL_FORMAT_STEREO16, bb, OUT_SAMPLE_RATE);
+            transferBuffer.clear();
+            transferBuffer.put(chunk.pcm).flip();
+            AL10.alBufferData(bufId, AL10.AL_FORMAT_STEREO16, transferBuffer, OUT_SAMPLE_RATE);
             AL10.alSourceQueueBuffers(alSource, bufId);
             alQueue.addLast(new InFlightBuffer(bufId, chunk.startPtsNanos, chunk.durationNanos));
         }
