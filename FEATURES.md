@@ -79,6 +79,7 @@ Legend: `[x]` shipped on `master` · `[~]` on a side branch, not yet merged ·
 
 User-picked next items, in priority order:
 
+- [ ] **Custom fonts** — `Style.font(Identifier)` forwarding to Minecraft's resource-pack font system (TTF supported natively by MC). API only: the user supplies the TTF and the `assets/<modid>/font/X.json` provider in their own resource pack.
 - [ ] **Markdown renderer** — basic CommonMark subset (headings, bold/italic, links, code, lists, hr). Use case: changelogs, in-game help.
 - [ ] **Virtualized list** — render only the rows in the viewport; works with `Supplier<Integer> rowCount` + `IntFunction<UIComponent> rowFactory`. Required once lists exceed a few hundred items.
 - [ ] **In-game UI editor** — drag-and-drop screen designer that emits `Components.X(...)` source. Big chunk of work but very high payoff for downstream modders.

@@ -1,5 +1,6 @@
 package org.triggersstudio.moddinglib.client.ui.styling;
 
+import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.events.ClickHandler;
 
 /**
@@ -23,6 +24,7 @@ public class Style {
     private final float opacity;
     private final boolean bold;
     private final int placeholderColor;
+    private final Identifier font;
 
     private Style(Builder builder) {
         this.width = builder.width;
@@ -41,6 +43,7 @@ public class Style {
         this.opacity = builder.opacity;
         this.bold = builder.bold;
         this.placeholderColor = builder.placeholderColor;
+        this.font = builder.font;
     }
 
     // Getters
@@ -113,6 +116,15 @@ public class Style {
         return placeholderColor;
     }
 
+    /**
+     * @return the resource-pack font identifier to render text with, or
+     * {@code null} when text should use the vanilla font. Resolved by
+     * Minecraft via {@code assets/<namespace>/font/<path>.json}.
+     */
+    public Identifier getFont() {
+        return font;
+    }
+
     // Builder pattern
     public static Builder builder() {
         return new Builder();
@@ -136,6 +148,7 @@ public class Style {
         builder.opacity = this.opacity;
         builder.bold = this.bold;
         builder.placeholderColor = this.placeholderColor;
+        builder.font = this.font;
         return builder;
     }
 
@@ -212,6 +225,10 @@ public class Style {
         return builder().placeholderColor(color);
     }
 
+    public static Builder font(Identifier font) {
+        return builder().font(font);
+    }
+
     // Builder class
     public static class Builder {
         private int width = Size.WRAP_CONTENT;
@@ -230,6 +247,7 @@ public class Style {
         private float opacity = 1.0f;
         private boolean bold = false;
         private int placeholderColor = 0; // 0 ⇒ derive from textColor
+        private Identifier font = null;   // null ⇒ vanilla font
 
         public Builder width(int width) {
             this.width = width;
@@ -320,6 +338,18 @@ public class Style {
 
         public Builder placeholderColor(int color) {
             this.placeholderColor = color;
+            return this;
+        }
+
+        /**
+         * Render text with a Minecraft resource-pack font instead of the
+         * vanilla one. The {@link Identifier} must resolve to a font JSON
+         * (e.g. {@code modid:my_font} → {@code assets/modid/font/my_font.json}).
+         * The user is responsible for shipping the font definition and the
+         * underlying TTF / bitmap in their own resource pack.
+         */
+        public Builder font(Identifier font) {
+            this.font = font;
             return this;
         }
 
