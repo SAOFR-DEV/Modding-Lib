@@ -5,6 +5,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import org.triggersstudio.moddinglib.client.ui.chart.ChartOptions;
 import org.triggersstudio.moddinglib.client.ui.chart.ChartSeries;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
@@ -52,7 +53,8 @@ public class BarChartComponent extends UIComponent {
     @Override
     public void render(DrawContext ctx) {
         if (style.getBackgroundColor() != 0) {
-            ctx.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            PaintRenderer.fillRect(ctx, x, y, width, height,
+                    style.getBackgroundPaint(), style.getBorderRadius());
         }
         int innerX = x + style.getPadding().left;
         int innerY = y + style.getPadding().top;

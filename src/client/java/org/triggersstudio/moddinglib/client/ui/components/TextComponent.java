@@ -6,6 +6,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
+import org.triggersstudio.moddinglib.client.ui.styling.Paint;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 
@@ -81,9 +83,11 @@ public class TextComponent extends UIComponent {
 
     @Override
     public void render(DrawContext drawContext) {
-        // Draw background if specified
+        // Draw background if specified — Paint dispatches to a fast solid
+        // path or to gradient scanline rendering depending on what's set.
         if (style.getBackgroundColor() != 0x00_00_00_00) {
-            drawContext.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            PaintRenderer.fillRect(drawContext, x, y, width, height,
+                    style.getBackgroundPaint(), style.getBorderRadius());
         }
 
         // Draw text
@@ -98,14 +102,58 @@ public class TextComponent extends UIComponent {
         }
 
         String displayText = resolve();
-        if (style.isBold()) {
-            // Bold via §l — works the same for vanilla and resource-pack
-            // fonts. We send the formatting code as a sibling so the
-            // font-style we baked into the parent still propagates.
-            MutableText bold = Text.literal("§l").append(styledText(displayText));
-            drawContext.drawText(textRenderer, bold, textX, textY, style.getTextColor(), true);
+        Paint textPaint = style.getTextPaint();
+        if (textPaint instanceof Paint.Solid) {
+            // Fast path — single drawText call. Identical to the historical
+            // behavior, including shadow on bold text.
+            if (style.isBold()) {
+                MutableText bold = Text.literal("§l").append(styledText(displayText));
+                drawContext.drawText(textRenderer, bold, textX, textY, style.getTextColor(), true);
+            } else {
+                drawContext.drawText(textRenderer, styledText(displayText), textX, textY, style.getTextColor(), false);
+            }
         } else {
-            drawContext.drawText(textRenderer, styledText(displayText), textX, textY, style.getTextColor(), false);
+            drawGradientText(drawContext, textRenderer, textPaint, displayText, textX, textY);
+        }
+    }
+
+    /**
+     * Per-glyph gradient text. Each codepoint is drawn individually with the
+     * paint sampled at the glyph's center, so multi-stop / radial / conic
+     * gradients all work uniformly.
+     *
+     * <p>Bold is preserved by routing through MC's vanilla bold mechanism
+     * (a {@code §l} prefix on every per-glyph {@code Text}) — that way
+     * width measurement and the characteristic 1px double-stroke stay
+     * consistent with the non-gradient path.
+     */
+    private void drawGradientText(DrawContext ctx, TextRenderer renderer, Paint paint,
+                                  String text, int textX, int textY) {
+        if (text.isEmpty()) return;
+
+        // Measure the full string once so per-glyph sampling has a stable
+        // denominator. Bold widens each glyph by 1 px, so we measure with
+        // the same prefix the per-glyph draw will use.
+        String prefix = style.isBold() ? "§l" : "";
+        int totalWidth = renderer.getWidth(styledText(prefix + text));
+        int textHeight = 9; // TextRenderer.fontHeight in 1.21.x
+
+        int cursorX = 0;
+        for (int i = 0; i < text.length(); ) {
+            int codePoint = text.codePointAt(i);
+            int charLen = Character.charCount(codePoint);
+            String glyph = text.substring(i, i + charLen);
+            Text styled = styledText(prefix + glyph);
+            int glyphWidth = renderer.getWidth(styled);
+
+            double centerX = cursorX + glyphWidth / 2.0;
+            double centerY = textHeight / 2.0;
+            int color = paint.sampleAt(centerX, centerY, totalWidth, textHeight);
+
+            ctx.drawText(renderer, styled, textX + cursorX, textY, color, false);
+
+            cursorX += glyphWidth;
+            i += charLen;
         }
     }
 
