@@ -7,6 +7,7 @@ import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.styling.ObjectFit;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 import org.triggersstudio.moddinglib.client.ui.video.VideoPlayer;
@@ -135,22 +136,110 @@ public class VideoComponent extends UIComponent {
         }
 
         if (textureId != null) {
-            // 12-arg drawTexture so the whole video is sampled (regionW/H =
-            // full texture dims) and stretched into the component bounds
-            // (width/height = on-screen rect). The 10-arg overload assumes
-            // regionW=width / regionH=height (1:1 pixels) and would crop.
             int texW = player.getWidth();
             int texH = player.getHeight();
-            ctx.drawTexture(RenderLayer::getGuiTextured, textureId,
-                    x, y,
-                    0f, 0f,
-                    width, height,
-                    texW, texH,
-                    texW, texH);
+            ObjectFit fit = style.getObjectFit();
+            if (fit == null) fit = ObjectFit.CONTAIN;
+            drawFitted(ctx, fit, texW, texH);
         } else if (style.getBackgroundColor() != 0) {
             // Show background while waiting for the first decoded frame.
             ctx.fill(x, y, x + width, y + height, style.getBackgroundColor());
         }
+    }
+
+    /**
+     * Pick the source-rect (u, v, regionW, regionH) and destination-rect
+     * (drawX, drawY, drawW, drawH) corresponding to the requested fit, then
+     * issue one 12-arg {@code drawTexture} call.
+     *
+     * <p>Letterbox/pillarbox bars (CONTAIN, NONE) are painted with the
+     * style's background color so the player background carries through to
+     * the empty margin. If no background is set, the margin shows the
+     * underlying screen — usually fine for a single video, less great when
+     * the video sits in a card.
+     */
+    private void drawFitted(DrawContext ctx, ObjectFit fit, int texW, int texH) {
+        float u = 0f, v = 0f;
+        int regionW = texW, regionH = texH;
+        int drawX = x, drawY = y, drawW = width, drawH = height;
+
+        switch (fit) {
+            case STRETCH:
+                // Fall through to the defaults above: full texture, full rect.
+                break;
+            case CONTAIN: {
+                double scale = Math.min((double) width / texW, (double) height / texH);
+                int fitW = Math.max(1, (int) Math.round(texW * scale));
+                int fitH = Math.max(1, (int) Math.round(texH * scale));
+                drawX = x + (width - fitW) / 2;
+                drawY = y + (height - fitH) / 2;
+                drawW = fitW;
+                drawH = fitH;
+                paintLetterboxBars(ctx, drawX, drawY, drawW, drawH);
+                break;
+            }
+            case COVER: {
+                // Pick the source crop so that scaling it to the bounds
+                // preserves aspect. The crop is centered on the texture.
+                double scale = Math.max((double) width / texW, (double) height / texH);
+                int srcW = Math.max(1, (int) Math.round(width / scale));
+                int srcH = Math.max(1, (int) Math.round(height / scale));
+                u = (texW - srcW) / 2f;
+                v = (texH - srcH) / 2f;
+                regionW = srcW;
+                regionH = srcH;
+                // drawX/Y/W/H unchanged — fill bounds.
+                break;
+            }
+            case NONE: {
+                // Draw at native pixel size, centered. If the texture is
+                // smaller than bounds we get margins (paint as letterbox);
+                // if larger, crop centered via u/v.
+                if (texW <= width && texH <= height) {
+                    drawX = x + (width - texW) / 2;
+                    drawY = y + (height - texH) / 2;
+                    drawW = texW;
+                    drawH = texH;
+                    paintLetterboxBars(ctx, drawX, drawY, drawW, drawH);
+                } else {
+                    int srcW = Math.min(texW, width);
+                    int srcH = Math.min(texH, height);
+                    u = (texW - srcW) / 2f;
+                    v = (texH - srcH) / 2f;
+                    regionW = srcW;
+                    regionH = srcH;
+                    drawX = x + (width - srcW) / 2;
+                    drawY = y + (height - srcH) / 2;
+                    drawW = srcW;
+                    drawH = srcH;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+
+        ctx.drawTexture(RenderLayer::getGuiTextured, textureId,
+                drawX, drawY,
+                u, v,
+                drawW, drawH,
+                regionW, regionH,
+                texW, texH);
+    }
+
+    private void paintLetterboxBars(DrawContext ctx, int drawX, int drawY, int drawW, int drawH) {
+        int bg = style.getBackgroundColor();
+        if (bg == 0) return;
+        int right = x + width;
+        int bottom = y + height;
+        // Top bar
+        if (drawY > y) ctx.fill(x, y, right, drawY, bg);
+        // Bottom bar
+        if (drawY + drawH < bottom) ctx.fill(x, drawY + drawH, right, bottom, bg);
+        // Left bar (only between the top and bottom bars to avoid overdraw)
+        if (drawX > x) ctx.fill(x, drawY, drawX, drawY + drawH, bg);
+        // Right bar
+        if (drawX + drawW < right) ctx.fill(drawX + drawW, drawY, right, drawY + drawH, bg);
     }
 
     private void copyFrameToImage(NativeImage img) {

@@ -112,5 +112,9 @@ public class Styles {
     public static Style.Builder placeholderColor(int color) {
         return Style.placeholderColor(color);
     }
+
+    public static Style.Builder objectFit(ObjectFit fit) {
+        return Style.objectFit(fit);
+    }
 }
 
