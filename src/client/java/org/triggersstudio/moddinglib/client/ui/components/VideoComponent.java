@@ -41,7 +41,11 @@ public class VideoComponent extends UIComponent {
 
     private NativeImageBackedTexture texture;
     private Identifier textureId;
-    private final int[] frameArgb;
+    /** Per-pixel ARGB scratch buffer for the slow fallback path. Lazily
+     *  allocated the first time {@code NativeImage.pointer} isn't exposed,
+     *  so the steady-state native-memcpy path doesn't hold ~8MB of heap
+     *  per 1080p instance for nothing. */
+    private int[] frameArgb;
     private long uploadedFrameVersion = 0L;
 
     public VideoComponent(VideoPlayer player, Style style, boolean ownsPlayer) {
@@ -49,7 +53,6 @@ public class VideoComponent extends UIComponent {
         if (player == null) throw new IllegalArgumentException("player must not be null");
         this.player = player;
         this.ownsPlayer = ownsPlayer;
-        this.frameArgb = new int[player.getWidth() * player.getHeight()];
     }
 
     public VideoPlayer getPlayer() {
@@ -116,6 +119,9 @@ public class VideoComponent extends UIComponent {
                 } else if (img != null) {
                     // Fallback: per-pixel pack via setColorArgb. Slower, used
                     // only if the access widener didn't expose the pointer.
+                    if (frameArgb == null) {
+                        frameArgb = new int[player.getWidth() * player.getHeight()];
+                    }
                     actualVersion = player.readLatestFrameArgb(frameArgb, uploadedFrameVersion);
                     if (actualVersion != uploadedFrameVersion) {
                         copyFrameToImage(img);

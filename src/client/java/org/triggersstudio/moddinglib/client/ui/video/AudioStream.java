@@ -76,6 +76,12 @@ public final class AudioStream implements AutoCloseable {
     private BytePointer convertOutBuffer;
     private final int convertOutCapacity;
     private final ByteBuffer transferBuffer;
+    /** Reused output-plane pointer array for {@code swr_convert}. For
+     *  non-planar S16 stereo, plane 0 is the only one populated and it
+     *  always points at {@link #convertOutBuffer}, so we wire it once at
+     *  open() time and reuse instead of new'ing-then-closing one per
+     *  decoded audio packet. */
+    private final PointerPointer<BytePointer> outPlanes;
 
     // OpenAL state — only touched from render thread (via pump()).
     private int alSource = -1;
@@ -122,6 +128,8 @@ public final class AudioStream implements AutoCloseable {
         this.convertOutBuffer = convertOutBuffer;
         this.convertOutCapacity = convertOutCapacity;
         this.transferBuffer = ByteBuffer.allocateDirect(convertOutCapacity).order(ByteOrder.nativeOrder());
+        this.outPlanes = new PointerPointer<>(1);
+        this.outPlanes.put(0, convertOutBuffer);
     }
 
     /**
@@ -203,17 +211,14 @@ public final class AudioStream implements AutoCloseable {
                     ? pendingNextStartPtsNanos
                     : (long) (framePtsTb * timeBase * 1_000_000_000.0);
 
-            // Bytedeco wants the destination as a PointerPointer for swr_convert.
-            // For non-planar S16 stereo, only data plane 0 is filled.
+            // Pooled outPlanes: pre-wired to convertOutBuffer at construction
+            // time. For non-planar S16 stereo only data plane 0 is filled,
+            // and that plane always points at the same scratch buffer.
             int outCapSamples = convertOutCapacity / (OUT_CHANNELS * BYTES_PER_SAMPLE);
-            PointerPointer<BytePointer> outPlanes = new PointerPointer<>(1);
-            outPlanes.put(0, convertOutBuffer);
-
             int convertedSamples = swr_convert(swrCtx,
                     outPlanes, outCapSamples,
                     frame.extended_data(), frame.nb_samples());
 
-            outPlanes.close();
             if (convertedSamples > 0) {
                 long durationNanos = (long) convertedSamples * 1_000_000_000L / OUT_SAMPLE_RATE;
                 int bytes = convertedSamples * OUT_CHANNELS * BYTES_PER_SAMPLE;
@@ -419,6 +424,7 @@ public final class AudioStream implements AutoCloseable {
             alInitialized = false;
         }
         pendingChunks.clear();
+        if (outPlanes != null)        { outPlanes.close(); }
         if (frame != null)            { av_frame_free(frame); frame = null; }
         if (swrCtx != null)           { swr_free(swrCtx); swrCtx = null; }
         if (convertOutBuffer != null) { av_free(convertOutBuffer); convertOutBuffer = null; }
