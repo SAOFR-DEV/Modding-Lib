@@ -67,40 +67,6 @@ The compiled JAR files will be available in the `build/libs/` directory.
 See [FEATURES.md](FEATURES.md) for the full living list — shipped components,
 work on side branches, selected priorities, and ideas under discussion.
 
-**Shipped — UI components** (on `master`)
-
-- [x] Animation (Tween / Spring / ColorTween / Fade / Slide / Loop / Yoyo)
-- [x] ProgressBar
-- [x] Slider (int / double / float / long / short, vertical, keyboard, hover)
-- [x] Player render (paperdoll-style entity preview)
-- [x] Chart (line / bar / pie, multi-series, hover tooltip)
-- [x] TextField + TextArea (filter, max length, Tab focus, onSubmit, caret blink)
-- [x] ComboBox
-- [x] SelectList
-- [x] ColorPicker
-- [x] Toast notifications
-- [x] Tooltips
-- [x] Pagination
-- [x] Accordion
-- [x] Skeleton
-- [x] Spinner
-- [x] Calendar
-
-**On a side branch** (not yet merged)
-
-- [~] Video player — `feature/video-player` (FFmpeg, audio, A/V sync, seek, loop)
-
-**Selected priorities** (next, in order)
-
-- [ ] Markdown renderer
-- [ ] Virtualized list
-- [ ] In-game UI editor
-- [ ] Devmode
-
-**Other**
-
-- [ ] Add channel communication to plugins
-
 ## License
 This project is licensed under the MIT License. See the [LICENSE.md](LICENSE.md) file for details.
 

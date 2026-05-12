@@ -1,6 +1,10 @@
 plugins {
     id 'fabric-loom' version '1.11-SNAPSHOT'
     id 'maven-publish'
+    // Picks the native classifier matching the build host (windows-x86_64,
+    // linux-x86_64, macosx-aarch_64, ...). Used for FFmpeg natives below
+    // so dev builds only pull the developer's OS instead of every OS.
+    id 'com.google.osdetector' version '1.7.3'
 }
 
 version = project.mod_version
@@ -12,6 +16,11 @@ base {
 
 loom {
     splitEnvironmentSourceSets()
+
+    // Access widener exposes private fields/methods on Minecraft classes
+    // for direct access from our code. Used for the fast video upload
+    // path (memcpy into NativeImage.pointer).
+    accessWidenerPath = file("src/main/resources/moddinglib.accesswidener")
 
     mods {
         "moddinglib" {
@@ -33,6 +42,7 @@ repositories {
     // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html
     // for more information about repositories.
+    mavenCentral()
 }
 
 dependencies {
@@ -42,6 +52,23 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Phase 1 video — JavaCPP FFmpeg bindings.
+    //
+    // We declare the wrapper jars + the *current host's* native classifier
+    // (~30-50MB) instead of the -platform meta artifact (~150MB packaging
+    // every OS). For a multi-platform published mod jar, list every target
+    // classifier explicitly here OR swap back to ffmpeg-platform — the
+    // tradeoff is dev iteration speed vs. distribution coverage.
+    //
+    // Wrapper licenses: bytedeco/javacpp + bytedeco/ffmpeg = Apache 2.0.
+    // Native FFmpeg binaries: LGPLv2.1+ as built by JavaCPP presets.
+    def ffmpegVersion = '7.1.1-1.5.12'
+    def javacppVersion = '1.5.12'
+    implementation "org.bytedeco:javacpp:${javacppVersion}"
+    implementation "org.bytedeco:javacpp:${javacppVersion}:${osdetector.classifier}"
+    implementation "org.bytedeco:ffmpeg:${ffmpegVersion}"
+    implementation "org.bytedeco:ffmpeg:${ffmpegVersion}:${osdetector.classifier}"
 }
 
 processResources {

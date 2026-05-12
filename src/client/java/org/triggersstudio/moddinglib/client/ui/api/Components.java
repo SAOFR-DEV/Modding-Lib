@@ -455,6 +455,33 @@ public class Components {
         return new ProgressBarComponent(barStyle, fillStyle, min, max, state::get, labelFormat);
     }
 
+    /**
+     * Supplier-based ProgressBar — bind to anything that produces a double
+     * each frame (player position, network bytes, framerate, ...). The
+     * supplier is invoked on the render thread, so it's safe to read live
+     * state. Returns 0 / NaN handling via the bar component's clamp logic.
+     */
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max) {
+        return ProgressBar(reader, min, max, ProgressBarComponent.defaultLabelFormat(min, max), null, null);
+    }
+
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max,
+                                          DoubleFunction<String> labelFormat) {
+        return ProgressBar(reader, min, max, labelFormat, null, null);
+    }
+
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max,
+                                          Style barStyle, Style fillStyle) {
+        return ProgressBar(reader, min, max,
+                ProgressBarComponent.defaultLabelFormat(min, max), barStyle, fillStyle);
+    }
+
+    public static UIComponent ProgressBar(DoubleSupplier reader, double min, double max,
+                                          DoubleFunction<String> labelFormat,
+                                          Style barStyle, Style fillStyle) {
+        return new ProgressBarComponent(barStyle, fillStyle, min, max, reader, labelFormat);
+    }
+
     // ===== Slider Components =====
     //
     // All sliders bind bidirectionally to a State<N>: dragging writes to the
@@ -922,6 +949,197 @@ public class Components {
 
     public static UIComponent Spinner(int size, int dotColor, long periodMs, Style style) {
         return new SpinnerComponent(size, dotColor, periodMs, style);
+    }
+
+    // ===== Video =====
+    //
+    // Phase-1 video player (no audio). Two construction modes:
+    //
+    // 1) URL overloads — opens VideoPlayer asynchronously on a daemon thread
+    //    so the screen stays responsive during the I/O phase. Renders a
+    //    Skeleton placeholder while loading, an error label on failure, and
+    //    the actual video once the open succeeds. The component owns the
+    //    player and disposes it on detach (including in-flight loads).
+    //
+    // 2) VideoPlayer overloads — caller has already opened the player
+    //    (synchronously or async) and passes it in. Useful for sharing one
+    //    player across multiple components, or pre-warming on a loading
+    //    screen. Pass ownsPlayer=true to delegate disposal to the component.
+    //
+    // Source can be any URL FFmpeg understands (file path, http://, rtsp://,
+    // live streams, etc.).
+
+    public static UIComponent Video(String url) {
+        return Video(url, Style.DEFAULT, false, p -> {});
+    }
+
+    public static UIComponent Video(String url, Style style) {
+        return Video(url, style, false, p -> {});
+    }
+
+    public static UIComponent Video(String url, Style style, boolean loop) {
+        return Video(url, style, loop, p -> {});
+    }
+
+    /**
+     * Async video factory with a hook to grab the underlying
+     * {@link org.triggersstudio.moddinglib.client.ui.video.VideoPlayer}
+     * once the open succeeds — useful to call {@code setVolume / seek /
+     * setLoop} from the screen, store the handle for a custom UI, etc.
+     * The callback runs on the render thread.
+     *
+     * <p>If the load fails the callback is not invoked. The component
+     * still renders an inline error inside the same bounds.
+     */
+    public static UIComponent Video(String url, Style style, boolean loop,
+                                    Consumer<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> onReady) {
+        return Video(url, style, loop, false, onReady);
+    }
+
+    /**
+     * Same as {@link #Video(String, Style, boolean,
+     *   java.util.function.Consumer)} with an extra opt-in for hardware
+     * decoding. When {@code hardware} is {@code true} the player probes
+     * the codec's supported {@code AV_HWDEVICE_TYPE_*} configurations
+     * (CUDA / D3D11VA / DXVA2 / QSV / VideoToolbox / VAAPI) and binds the
+     * first one that succeeds. Failure to find or initialize a hw context
+     * falls back silently to software decode — you never get an error
+     * from "no hw available".
+     */
+    public static UIComponent Video(String url, Style style, boolean loop, boolean hardware,
+                                    Consumer<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> onReady) {
+        org.triggersstudio.moddinglib.client.ui.state.State<
+                org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus> status =
+                org.triggersstudio.moddinglib.client.ui.state.State.of(
+                        org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.loading());
+        java.util.concurrent.atomic.AtomicBoolean disposed = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+        Thread loader = new Thread(() -> {
+            org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player = null;
+            Throwable err = null;
+            try {
+                player = org.triggersstudio.moddinglib.client.ui.video.VideoPlayer.open(url, hardware);
+            } catch (Throwable t) {
+                err = t;
+            }
+            org.triggersstudio.moddinglib.client.ui.video.VideoPlayer finalPlayer = player;
+            Throwable finalErr = err;
+            net.minecraft.client.MinecraftClient.getInstance().execute(() -> {
+                if (disposed.get()) {
+                    if (finalPlayer != null) finalPlayer.close();
+                    return;
+                }
+                if (finalErr != null) {
+                    String msg = finalErr.getMessage();
+                    status.set(org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.error(
+                            msg != null ? msg : finalErr.getClass().getSimpleName()));
+                } else {
+                    finalPlayer.setLoop(loop);
+                    if (onReady != null) {
+                        try { onReady.accept(finalPlayer); }
+                        catch (Throwable ignored) { /* user callback shouldn't break loading */ }
+                    }
+                    status.set(org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus.ready(finalPlayer));
+                }
+            });
+        }, "moddinglib-video-opener");
+        loader.setDaemon(true);
+        loader.start();
+
+        UIComponent dyn = Dynamic(status, s -> renderVideoStatus(s, style));
+        return new AsyncVideoWrapper(dyn, disposed);
+    }
+
+    private static UIComponent renderVideoStatus(
+            org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus s, Style style) {
+        switch (s.state) {
+            case LOADING:
+                return new SkeletonComponent(
+                        Style.width(style.getWidth()).height(style.getHeight()).build());
+            case ERROR:
+                return Column(
+                        Style.backgroundColor(0xFF_22_22_22)
+                                .border(0xFF_88_2A_2A, 1).borderRadius(2)
+                                .padding(8)
+                                .width(style.getWidth()).height(style.getHeight()).build(),
+                        Text("Video failed:",
+                                Style.textColor(0xFF_FF_55_55).fontSize(11).bold().build()),
+                        Text(s.error != null ? s.error : "(unknown)",
+                                Style.textColor(0xFF_AA_AA_AA).fontSize(10)
+                                        .margin(4, 0, 0, 0).build())
+                );
+            case READY:
+            default:
+                return new VideoComponent(s.player, style, true);
+        }
+    }
+
+    private static int positiveOr(int v, int fallback) {
+        return v > 0 ? v : fallback;
+    }
+
+    /**
+     * Tiny lifecycle bridge: forwards detach to its child, AND flips the
+     * shared {@code disposed} flag so any still-pending video opener thread
+     * knows to dispose the player once it eventually resolves.
+     */
+    private static final class AsyncVideoWrapper extends org.triggersstudio.moddinglib.client.ui.components.Container {
+        private final java.util.concurrent.atomic.AtomicBoolean disposed;
+
+        AsyncVideoWrapper(UIComponent child, java.util.concurrent.atomic.AtomicBoolean disposed) {
+            super(Style.DEFAULT,
+                    org.triggersstudio.moddinglib.client.ui.layout.LayoutType.VERTICAL, 0);
+            this.disposed = disposed;
+            addChild(child);
+        }
+
+        @Override
+        public void onDetach() {
+            disposed.set(true);
+            super.onDetach();
+        }
+    }
+
+    public static UIComponent Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player) {
+        return new VideoComponent(player, Style.DEFAULT, false);
+    }
+
+    public static UIComponent Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player,
+                                    Style style) {
+        return new VideoComponent(player, style, false);
+    }
+
+    public static UIComponent Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player,
+                                    Style style, boolean ownsPlayer) {
+        return new VideoComponent(player, style, ownsPlayer);
+    }
+
+    // ===== Video scrub bar =====
+    //
+    // Click + drag bar bound to a VideoPlayer. Reads currentTimeSeconds /
+    // durationSeconds for the fill. On release, calls player.seek(target).
+    // Tolerates a null player (async-load grace period) and live streams
+    // (no duration -> no seeking).
+
+    /**
+     * Click-and-drag scrub bar wired to a player handle. The supplier is
+     * polled every frame so the bar resolves a still-loading player as
+     * soon as it arrives (see the {@code playerRef::set} pattern used by
+     * {@link #Video(String, Style, boolean,
+     *   java.util.function.Consumer)}).
+     */
+    public static UIComponent VideoScrubBar(
+            java.util.function.Supplier<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> playerSupplier,
+            Style style) {
+        return new org.triggersstudio.moddinglib.client.ui.components.VideoScrubBarComponent(
+                playerSupplier, style);
+    }
+
+    public static UIComponent VideoScrubBar(
+            org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player,
+            Style style) {
+        return new org.triggersstudio.moddinglib.client.ui.components.VideoScrubBarComponent(
+                () -> player, style);
     }
 
     // ===== Tooltip =====

@@ -357,6 +357,128 @@ public class ExampleScreens {
     }
 
     /**
+     * Video demo (phase 1, no audio). Edit the {@code SAMPLE_URL} below to
+     * point at a local mp4 / http stream / rtsp / etc. — anything FFmpeg can
+     * decode. The component opens asynchronously on attach: a Skeleton fills
+     * the bounds while the network/decode handshake runs, then swaps in the
+     * actual video. On failure an inline error replaces the skeleton.
+     */
+    public static UIScreen createVideoScreen() {
+        final String SAMPLE_URL = System.getProperty("moddinglib.sampleVideo",
+                "https://lafibre.info/videos/test/201411_blender_big_buck_bunny_24fps_480p_av1.mp4");
+
+        // Hold the player handle so the buttons below can call seek/setLoop.
+        java.util.concurrent.atomic.AtomicReference<
+                org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> playerRef =
+                new java.util.concurrent.atomic.AtomicReference<>();
+
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+                Components.Text(
+                        "Video Demo (loop + seek)",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+                Components.Text(
+                        "Source: " + SAMPLE_URL,
+                        fontSize(9).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+                Components.Video(
+                        SAMPLE_URL,
+                        backgroundColor(0xFF_00_00_00)
+                                .width(480).height(270)
+                                .border(0xFF_44_44_44, 1).borderRadius(4).build(),
+                        true, // loop on EOF
+                        playerRef::set
+                ),
+                // Live progress bar — supplier reads playerRef every frame and
+                // tolerates a null player (still loading) or a live stream
+                // (durationSeconds() == +Infinity → 0 ratio, "live" label).
+                Components.ProgressBar(
+                        () -> {
+                            var p = playerRef.get();
+                            if (p == null) return 0.0;
+                            double dur = p.durationSeconds();
+                            if (!Double.isFinite(dur) || dur <= 0) return 0.0;
+                            return p.currentTimeSeconds() / dur;
+                        },
+                        0.0, 1.0,
+                        v -> {
+                            var p = playerRef.get();
+                            if (p == null) return "loading…";
+                            double cur = p.currentTimeSeconds();
+                            double dur = p.durationSeconds();
+                            return formatMmSs(cur) + " / "
+                                    + (Double.isFinite(dur) ? formatMmSs(dur) : "live");
+                        },
+                        backgroundColor(0xFF_22_22_22).textColor(WHITE)
+                                .width(480).height(14).margin(10, 0, 0, 0)
+                                .borderRadius(3).build(),
+                        backgroundColor(0xFF_55_AA_FF).borderRadius(3).build()
+                ),
+                Components.Row(row -> {
+                    row.Button("⏮ Restart",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(22).width(90).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p != null) p.seek(0);
+                                    }).build());
+                    row.Button("⏪ -5s",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(22).width(70).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p == null) return;
+                                        p.seek(Math.max(0, p.currentTimeSeconds() - 5.0));
+                                    }).build());
+                    row.Button("⏯ Pause",
+                            backgroundColor(0xFF_55_55_55).textColor(WHITE)
+                                    .height(22).width(70).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p == null) return;
+                                        if (p.isPaused()) p.play();
+                                        else p.pause();
+                                    }).build());
+                    row.Button("⏭ +5s",
+                            backgroundColor(0xFF_2A_5C_88).textColor(WHITE)
+                                    .height(22).width(70).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p == null) return;
+                                        // Relative seek, clamped to just before the end so we don't
+                                        // immediately overshoot into EOF/loop on short remainders.
+                                        double target = p.currentTimeSeconds() + 5.0;
+                                        double dur = p.durationSeconds();
+                                        if (Double.isFinite(dur)) target = Math.min(target, dur - 0.1);
+                                        p.seek(Math.max(0, target));
+                                    }).build());
+                    row.Button("Mute",
+                            backgroundColor(0xFF_88_2A_2A).textColor(WHITE)
+                                    .height(22).width(60).margin(8, 6, 0, 0)
+                                    .onClick((mx, my, btn) -> {
+                                        var p = playerRef.get();
+                                        if (p != null) p.setMuted(!p.muted());
+                                    }).build());
+                }),
+                Components.Text(
+                        "Loop = on. Restart → seek 0; -5s/+5s → relative; Pause toggle; Mute toggle.",
+                        fontSize(9).textColor(0xFF_77_77_77).margin(8, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "Video Demo");
+    }
+
+    private static String formatMmSs(double seconds) {
+        if (!Double.isFinite(seconds) || seconds < 0) return "--:--";
+        long total = (long) seconds;
+        long m = total / 60;
+        long s = total % 60;
+        return String.format("%d:%02d", m, s);
+    }
+
+    /**
      * Corner-radius demo: showcases how the new {@code borderRadius} style
      * field flows through {@link Components#Row}, Buttons, sliders, progress
      * bars, etc. Each row pairs a sharp variant with a rounded one for

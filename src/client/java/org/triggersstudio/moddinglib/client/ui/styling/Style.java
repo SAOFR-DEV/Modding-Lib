@@ -24,6 +24,7 @@ public class Style {
     private final float opacity;
     private final boolean bold;
     private final int placeholderColor;
+    private final ObjectFit objectFit;
     private final Identifier font;
     private final Paint backgroundPaint;
     private final Paint textPaint;
@@ -45,6 +46,7 @@ public class Style {
         this.opacity = builder.opacity;
         this.bold = builder.bold;
         this.placeholderColor = builder.placeholderColor;
+        this.objectFit = builder.objectFit;
         this.font = builder.font;
         this.backgroundPaint = builder.backgroundPaint;
         this.textPaint = builder.textPaint;
@@ -121,6 +123,16 @@ public class Style {
     }
 
     /**
+     * @return the requested fit mode for aspect-ratio'd children (video,
+     * image), or {@code null} when unset — in which case consumers pick
+     * their own sensible default (e.g. {@code VideoComponent} uses
+     * {@link ObjectFit#CONTAIN}).
+     */
+    public ObjectFit getObjectFit() {
+        return objectFit;
+    }
+  
+    /*
      * @return the resource-pack font identifier to render text with, or
      * {@code null} when text should use the vanilla font. Resolved by
      * Minecraft via {@code assets/<namespace>/font/<path>.json}.
@@ -171,6 +183,7 @@ public class Style {
         builder.opacity = this.opacity;
         builder.bold = this.bold;
         builder.placeholderColor = this.placeholderColor;
+        builder.objectFit = this.objectFit;
         builder.font = this.font;
         builder.backgroundPaint = this.backgroundPaint;
         builder.textPaint = this.textPaint;
@@ -250,6 +263,10 @@ public class Style {
         return builder().placeholderColor(color);
     }
 
+    public static Builder objectFit(ObjectFit fit) {
+        return builder().objectFit(fit);
+    }
+  
     public static Builder font(Identifier font) {
         return builder().font(font);
     }
@@ -280,6 +297,7 @@ public class Style {
         private float opacity = 1.0f;
         private boolean bold = false;
         private int placeholderColor = 0; // 0 ⇒ derive from textColor
+        private ObjectFit objectFit = null; // null ⇒ consumer-defined default
         private Identifier font = null;   // null ⇒ vanilla font
         private Paint backgroundPaint = null; // null ⇒ derive from backgroundColor
         private Paint textPaint = null;       // null ⇒ derive from textColor
@@ -406,6 +424,17 @@ public class Style {
         }
 
         /**
+         * How an aspect-ratio'd child (video, image) should be fitted into
+         * the component bounds. See {@link ObjectFit} for the four modes.
+         * Passing {@code null} reverts to the consumer's default
+         * ({@code VideoComponent} treats null as {@link ObjectFit#CONTAIN}).
+         */
+        public Builder objectFit(ObjectFit fit) {
+            this.objectFit = fit;
+            return this;
+        }
+      
+        /*
          * Render text with a Minecraft resource-pack font instead of the
          * vanilla one. The {@link Identifier} must resolve to a font JSON
          * (e.g. {@code modid:my_font} → {@code assets/modid/font/my_font.json}).

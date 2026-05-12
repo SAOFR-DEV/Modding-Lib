@@ -222,6 +222,22 @@ public class ContainerScope {
                             Style barStyle, Style fillStyle) {
         children.add(Components.ProgressBar(state, min, max, labelFormat, barStyle, fillStyle));
     }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max) {
+        children.add(Components.ProgressBar(reader, min, max));
+    }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max,
+                            DoubleFunction<String> labelFormat) {
+        children.add(Components.ProgressBar(reader, min, max, labelFormat));
+    }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max,
+                            Style barStyle, Style fillStyle) {
+        children.add(Components.ProgressBar(reader, min, max, barStyle, fillStyle));
+    }
+    public void ProgressBar(java.util.function.DoubleSupplier reader, double min, double max,
+                            DoubleFunction<String> labelFormat,
+                            Style barStyle, Style fillStyle) {
+        children.add(Components.ProgressBar(reader, min, max, labelFormat, barStyle, fillStyle));
+    }
 
     // --- Slider Int ---
     public void SliderInt(State<Integer> state, int min, int max) {
@@ -434,6 +450,27 @@ public class ContainerScope {
     }
     public void Spinner(int size, int dotColor, long periodMs, Style style) {
         children.add(Components.Spinner(size, dotColor, periodMs, style));
+    }
+
+    // --- Video ---
+    public void Video(String url) {
+        children.add(Components.Video(url));
+    }
+    public void Video(String url, Style style) {
+        children.add(Components.Video(url, style));
+    }
+    public void Video(String url, Style style, boolean loop) {
+        children.add(Components.Video(url, style, loop));
+    }
+    public void Video(String url, Style style, boolean loop,
+                      Consumer<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> onReady) {
+        children.add(Components.Video(url, style, loop, onReady));
+    }
+    public void Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player) {
+        children.add(Components.Video(player));
+    }
+    public void Video(org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player, Style style) {
+        children.add(Components.Video(player, style));
     }
 
     // --- Tooltip ---

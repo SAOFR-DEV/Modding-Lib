@@ -114,6 +114,10 @@ public class Styles {
         return Style.placeholderColor(color);
     }
 
+    public static Style.Builder objectFit(ObjectFit fit) {
+        return Style.objectFit(fit);
+    }
+  
     public static Style.Builder font(Identifier font) {
         return Style.font(font);
     }
