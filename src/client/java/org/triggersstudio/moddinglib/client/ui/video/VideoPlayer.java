@@ -105,9 +105,12 @@ public final class VideoPlayer implements AutoCloseable {
 
     /** When true, decoder rewinds to start on EOF instead of ending. */
     private volatile boolean loop = false;
-    /** Seek command from any thread → consumed by decoder thread. */
-    private volatile boolean seekRequested = false;
-    private volatile long seekTargetMicros = 0L;
+    /** Seek command from any thread → consumed by decoder thread.
+     *  {@code -1} = no pending seek; otherwise the target in microseconds.
+     *  Atomic so a rapid sequence of {@code seek()} calls always reaches the
+     *  decoder as the latest value, never as a stale one read between the
+     *  old "flag + target" pair. */
+    private final AtomicLong pendingSeekMicros = new AtomicLong(-1L);
     /** PTS in nanoseconds of the most recently published video frame.
      *  Used by {@link #currentTimeSeconds()} as the canonical "where am I"
      *  reference — more reliable than the audio/wall master clock right
@@ -441,8 +444,7 @@ public final class VideoPlayer implements AutoCloseable {
      */
     public void seek(double seconds) {
         if (closed.get()) return;
-        seekTargetMicros = Math.max(0L, (long) (seconds * 1_000_000.0));
-        seekRequested = true;
+        pendingSeekMicros.set(Math.max(0L, (long) (seconds * 1_000_000.0)));
         ended.set(false);
     }
 
@@ -544,9 +546,9 @@ public final class VideoPlayer implements AutoCloseable {
     private void decodeLoop() {
         try {
             while (running.get()) {
-                if (seekRequested) {
-                    seekRequested = false;
-                    doSeek(seekTargetMicros);
+                long pendingSeek = pendingSeekMicros.getAndSet(-1L);
+                if (pendingSeek >= 0L) {
+                    doSeek(pendingSeek);
                 }
                 if (paused) {
                     Thread.sleep(15);
@@ -597,58 +599,81 @@ public final class VideoPlayer implements AutoCloseable {
             audio.flushCodec();
             audio.requestReset();
         }
-        // Clock anchors: forget the wall-clock baseline so the fallback
-        // re-zeroes itself, and reset accumulated pause time.
-        startNanos = -1L;
+        // Anchor the wall-clock to the seek target rather than zero. Without
+        // this, drainDecoder's pacing loop saw clockNanos = 0 against a
+        // frameTargetNanos far in the future and slept the full seek
+        // distance — i.e. seeking to +10s on a silent source froze the
+        // image for 10s of wall time. For audio-bearing sources it also
+        // covers the gap until the AL clock starts producing samples.
+        long targetNanos = targetMicros * 1_000L;
+        startNanos = System.nanoTime() - targetNanos;
         pauseAccumNanos = 0L;
         pausedAtNanos = paused ? System.nanoTime() : -1L;
         // Seed the position with the seek target so currentTimeSeconds()
         // reads correctly even before the next frame actually publishes
         // (without this, a fast user retap of "+5s" would compute against
         // a stale audio clock or a freshly-zeroed wall clock).
-        lastPublishedPtsNanos = targetMicros * 1_000L;
+        lastPublishedPtsNanos = targetNanos;
 
         // If we land here while paused, the main decode loop is going to
         // skip every read (paused branch) so the on-screen frame stays at
-        // the pre-seek position. Decode + publish a single frame inline
-        // so the user sees the new spot. Done synchronously on the same
-        // decoder thread, so no threading concerns.
+        // the pre-seek position. Decode + publish a frame inline so the
+        // user sees the new spot. Done synchronously on the same decoder
+        // thread, so no threading concerns.
         if (paused) {
-            decodeOnePostSeekFrame();
+            decodeUntilTargetFrame(targetNanos);
         }
     }
 
     /**
-     * Drain enough packets after a seek to emit exactly one video frame,
-     * then publish it. Audio packets we encounter on the way are queued
-     * normally so AL is primed for when the user unpauses. Called only
-     * from the decoder thread (inside {@link #doSeek}).
+     * Drain packets after a seek until we decode a frame whose PTS reaches
+     * the seek target, then publish it. {@code av_seek_frame} with
+     * {@code AVSEEK_FLAG_BACKWARD} lands on the keyframe BEFORE the target,
+     * so the first decoded frame is typically a few seconds early — naively
+     * publishing it would show the wrong spot and overwrite
+     * {@link #lastPublishedPtsNanos} with a value behind the seek. We scale
+     * each intermediate frame into the shared {@code rgbBuffer} (silently
+     * overwriting until we reach the target) and only bump
+     * {@link #frameVersion} for the frame that's at-or-past target — that
+     * way the render thread never observes the pre-target intermediates.
+     *
+     * <p>Audio packets we encounter on the way are pushed into the audio
+     * pipeline so AL is primed for unpause. Called only from the decoder
+     * thread (inside {@link #doSeek}).
      */
-    private void decodeOnePostSeekFrame() {
+    private void decodeUntilTargetFrame(long targetNanos) {
         int packetsTried = 0;
+        long latestPtsNanos = 0L;
+        boolean haveCandidate = false;
         try {
-            while (running.get() && packetsTried++ < 128) {
+            while (running.get() && packetsTried++ < 256) {
                 int rd = av_read_frame(formatCtx, packet);
-                if (rd < 0) return;
+                if (rd < 0) break;
                 int streamIdx = packet.stream_index();
                 if (streamIdx == videoStreamIdx) {
                     int sent = avcodec_send_packet(videoCodecCtx, packet);
                     av_packet_unref(packet);
                     if (sent < 0) continue;
-                    int recv = avcodec_receive_frame(videoCodecCtx, decodedFrame);
-                    if (recv == 0) {
-                        sws_scale(swsCtx,
-                                decodedFrame.data(), decodedFrame.linesize(), 0, height,
-                                rgbFrame.data(), rgbFrame.linesize());
+                    int recv;
+                    while ((recv = avcodec_receive_frame(videoCodecCtx, decodedFrame)) == 0) {
                         long pts = decodedFrame.best_effort_timestamp();
                         long ptsNanos = (pts == AV_NOPTS_VALUE) ? 0L
                                 : (long) (pts * timeBase * 1_000_000_000.0);
-                        synchronized (frameLock) {
-                            frameVersion.incrementAndGet();
-                            if (ptsNanos != 0) lastPublishedPtsNanos = ptsNanos;
-                        }
+                        // Overwrite the scratch buffer with every decode.
+                        // Render thread only observes it via frameVersion
+                        // changes, and we don't bump that until target or
+                        // the give-up path below — so intermediate writes
+                        // never flash on screen.
+                        sws_scale(swsCtx,
+                                decodedFrame.data(), decodedFrame.linesize(), 0, height,
+                                rgbFrame.data(), rgbFrame.linesize());
+                        latestPtsNanos = ptsNanos;
+                        haveCandidate = true;
                         av_frame_unref(decodedFrame);
-                        return;
+                        if (ptsNanos >= targetNanos) {
+                            publishCurrentFrame(ptsNanos);
+                            return;
+                        }
                     }
                 } else if (audio != null && streamIdx == audio.streamIndex()) {
                     audio.processPacket(packet);
@@ -657,9 +682,22 @@ public final class VideoPlayer implements AutoCloseable {
                     av_packet_unref(packet);
                 }
             }
+            // Ran out of packets / hit the iteration cap without reaching
+            // target — publish whatever we last decoded so the user at
+            // least sees something close to where they asked.
+            if (haveCandidate) {
+                publishCurrentFrame(latestPtsNanos);
+            }
         } catch (Throwable ignored) {
             // Best-effort refresh; if anything goes wrong, leave the old
             // frame on screen. The next play() will recover.
+        }
+    }
+
+    private void publishCurrentFrame(long ptsNanos) {
+        synchronized (frameLock) {
+            frameVersion.incrementAndGet();
+            if (ptsNanos != 0) lastPublishedPtsNanos = ptsNanos;
         }
     }
 
