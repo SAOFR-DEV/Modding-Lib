@@ -2,11 +2,13 @@ package org.triggersstudio.moddinglib.client.ui.video;
 
 import org.bytedeco.ffmpeg.avcodec.AVCodec;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
+import org.bytedeco.ffmpeg.avcodec.AVCodecHWConfig;
 import org.bytedeco.ffmpeg.avcodec.AVCodecParameters;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avformat.AVFormatContext;
 import org.bytedeco.ffmpeg.avformat.AVIOInterruptCB;
 import org.bytedeco.ffmpeg.avformat.AVStream;
+import org.bytedeco.ffmpeg.avutil.AVBufferRef;
 import org.bytedeco.ffmpeg.avutil.AVDictionary;
 import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
@@ -69,12 +71,29 @@ public final class VideoPlayer implements AutoCloseable {
     private AVFormatContext formatCtx;
     private AVCodecContext videoCodecCtx;
     private SwsContext swsCtx;
+    /** Source pix_fmt the {@code swsCtx} was created against — recreated
+     *  lazily if the first hw-transferred frame turns out to use a
+     *  different format (NV12 vs P010 vs ...). */
+    private int swsSrcPixFmt = AV_PIX_FMT_NONE;
     private final int videoStreamIdx;
     private AVFrame decodedFrame;
+    /** Sw destination for {@code av_hwframe_transfer_data}. Only allocated
+     *  when {@link #hwDeviceCtx} is non-null (i.e. we're in hw-decode
+     *  mode). */
+    private AVFrame hwTransferFrame;
     private AVFrame rgbFrame;
     private AVPacket packet;
     private BytePointer rgbBuffer;
     private final ByteBuffer rgbView;
+
+    /** {@code null} when running in pure software mode. Otherwise the
+     *  hwdevice context handed off to {@code AVCodecContext.hw_device_ctx}.
+     *  Owned and freed by {@link #close()}. */
+    private AVBufferRef hwDeviceCtx;
+    /** The pix_fmt FFmpeg will emit on the hw path — i.e. what we compare
+     *  {@code decodedFrame.format()} against to detect "this frame needs
+     *  transfer". {@code AV_PIX_FMT_NONE} when running pure sw. */
+    private final int hwPixFmt;
 
     private Thread decoderThread;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -124,18 +143,23 @@ public final class VideoPlayer implements AutoCloseable {
     private volatile long lastPublishedPtsNanos = 0L;
 
     private VideoPlayer(String source, AVFormatContext formatCtx, int videoStreamIdx,
-                        AVCodecContext videoCodecCtx, SwsContext swsCtx,
-                        AVFrame decodedFrame, AVFrame rgbFrame, AVPacket packet,
+                        AVCodecContext videoCodecCtx,
+                        AVFrame decodedFrame, AVFrame rgbFrame, AVFrame hwTransferFrame, AVPacket packet,
                         BytePointer rgbBuffer, double timeBase, AudioStream audio,
                         AtomicBoolean interrupted,
-                        AVIOInterruptCB.Callback_Pointer interruptCallback) {
+                        AVIOInterruptCB.Callback_Pointer interruptCallback,
+                        AVBufferRef hwDeviceCtx, int hwPixFmt) {
         this.source = source;
         this.formatCtx = formatCtx;
         this.videoStreamIdx = videoStreamIdx;
         this.videoCodecCtx = videoCodecCtx;
-        this.swsCtx = swsCtx;
+        // sws context is created lazily on the first decoded frame so we can
+        // size its input pix_fmt against whatever actually comes out of the
+        // decoder (sw codec pix_fmt vs hw-transfer pix_fmt).
+        this.swsCtx = null;
         this.decodedFrame = decodedFrame;
         this.rgbFrame = rgbFrame;
+        this.hwTransferFrame = hwTransferFrame;
         this.packet = packet;
         this.rgbBuffer = rgbBuffer;
         this.width = videoCodecCtx.width();
@@ -146,6 +170,42 @@ public final class VideoPlayer implements AutoCloseable {
         this.audio = audio;
         this.interrupted = interrupted;
         this.interruptCallback = interruptCallback;
+        this.hwDeviceCtx = hwDeviceCtx;
+        this.hwPixFmt = hwPixFmt;
+    }
+
+    private record HardwareProbe(int deviceType, int hwPixFmt) {}
+
+    /**
+     * Walk the codec's hw configs in our preferred device-type order.
+     * Returns the first hit that supports {@code HW_DEVICE_CTX} setup
+     * (the cleanest hw path), or {@code null} when nothing matched.
+     *
+     * <p>Order rationale: CUDA is the most reliable cross-OS hw path
+     * (NVIDIA GPU + nvdec drivers); D3D11VA is the modern Windows native;
+     * DXVA2 is its legacy fallback; QSV covers Intel iGPUs; VideoToolbox
+     * is macOS native; VAAPI is the Linux native.
+     */
+    private static HardwareProbe probeHardwareDecode(AVCodec codec) {
+        int[] preferred = {
+                AV_HWDEVICE_TYPE_CUDA,
+                AV_HWDEVICE_TYPE_D3D11VA,
+                AV_HWDEVICE_TYPE_DXVA2,
+                AV_HWDEVICE_TYPE_QSV,
+                AV_HWDEVICE_TYPE_VIDEOTOOLBOX,
+                AV_HWDEVICE_TYPE_VAAPI,
+        };
+        for (int wantedType : preferred) {
+            for (int i = 0; ; i++) {
+                AVCodecHWConfig cfg = avcodec_get_hw_config(codec, i);
+                if (cfg == null || cfg.isNull()) break;
+                if ((cfg.methods() & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) != 0
+                        && cfg.device_type() == wantedType) {
+                    return new HardwareProbe(wantedType, cfg.pix_fmt());
+                }
+            }
+        }
+        return null;
     }
 
     private static final AtomicBoolean NETWORK_INIT_DONE = new AtomicBoolean(false);
@@ -180,6 +240,26 @@ public final class VideoPlayer implements AutoCloseable {
      * @throws VideoOpenException if any step of the FFmpeg open dance fails.
      */
     public static VideoPlayer open(String source) {
+        return open(source, false);
+    }
+
+    /**
+     * Open a video source with optional hardware decoding. When
+     * {@code hardware} is {@code true} the player probes the codec's
+     * supported {@code AV_HWDEVICE_TYPE_*} configs (CUDA, D3D11VA, DXVA2,
+     * QSV, VideoToolbox, VAAPI) and binds the first one whose device
+     * creates successfully. If every probe fails the codec is opened in
+     * software mode — no error is raised, the caller still gets a working
+     * player. This is opt-in because the hw path is platform-dependent
+     * and harder to validate; software stays the safe default.
+     *
+     * <p>Once hardware is bound, decoded frames live on the GPU; an
+     * {@code av_hwframe_transfer_data} step in the decode loop brings them
+     * back to system memory before sws_scale. The transfer itself costs a
+     * VRAM→RAM copy per frame, so hardware decode is a clear win on H.264
+     * / H.265 at 1080p+ where the decoder is the CPU bottleneck.
+     */
+    public static VideoPlayer open(String source, boolean hardware) {
         ensureNetworkInit();
 
         // Interrupt machinery — wired BEFORE avformat_open_input so a slow
@@ -203,13 +283,15 @@ public final class VideoPlayer implements AutoCloseable {
         // (FFmpeg already frees formatCtx itself when open fails).
         AVFormatContext formatCtx = null;
         AVCodecContext videoCodecCtx = null;
-        SwsContext swsCtx = null;
         AVFrame decodedFrame = null;
         AVFrame rgbFrame = null;
+        AVFrame hwTransferFrame = null;
         AVPacket packet = null;
         BytePointer rgbBuffer = null;
         AudioStream audio = null;
         AVDictionary openOpts = null;
+        AVBufferRef hwDeviceCtx = null;
+        int hwPixFmt = AV_PIX_FMT_NONE;
         boolean fmtOpened = false;
 
         try {
@@ -277,6 +359,27 @@ public final class VideoPlayer implements AutoCloseable {
             if (ret < 0) {
                 throw new VideoOpenException("avcodec_parameters_to_context failed: " + ffmpegError(ret));
             }
+
+            // Optional hardware-decode setup. Done BEFORE avcodec_open2 so
+            // the codec sees the hw_device_ctx and can request hw frames.
+            // Probe failure is silent: we fall through to sw open.
+            if (hardware) {
+                HardwareProbe probe = probeHardwareDecode(codec);
+                if (probe != null) {
+                    PointerPointer<AVBufferRef> devicePtr = new PointerPointer<>(1);
+                    try {
+                        int rc = av_hwdevice_ctx_create(devicePtr, probe.deviceType, (String) null, null, 0);
+                        if (rc >= 0) {
+                            hwDeviceCtx = new AVBufferRef(devicePtr.get(0));
+                            videoCodecCtx.hw_device_ctx(av_buffer_ref(hwDeviceCtx));
+                            hwPixFmt = probe.hwPixFmt;
+                        }
+                    } finally {
+                        devicePtr.close();
+                    }
+                }
+            }
+
             ret = avcodec_open2(videoCodecCtx, codec, (AVDictionary) null);
             if (ret < 0) {
                 throw new VideoOpenException("avcodec_open2 failed: " + ffmpegError(ret));
@@ -284,24 +387,20 @@ public final class VideoPlayer implements AutoCloseable {
             int w = videoCodecCtx.width();
             int h = videoCodecCtx.height();
             int srcPixFmt = videoCodecCtx.pix_fmt();
-            if (srcPixFmt == AV_PIX_FMT_NONE) {
+            if (srcPixFmt == AV_PIX_FMT_NONE && hwPixFmt == AV_PIX_FMT_NONE) {
                 throw new VideoOpenException("Stream pix_fmt is unspecified — try a longer / less truncated source");
-            }
-            // Output BGRA so the in-memory bytes (B,G,R,A) read back as a
-            // little-endian 32-bit int give us exactly 0xAARRGGBB = the ARGB
-            // that NativeImage.setColorArgb expects. Avoids per-pixel shuffling.
-            swsCtx = sws_getContext(
-                    w, h, srcPixFmt,
-                    w, h, AV_PIX_FMT_BGRA,
-                    SWS_BILINEAR, null, null, (DoublePointer) null);
-            if (swsCtx == null) {
-                throw new VideoOpenException("sws_getContext failed (src pix_fmt=" + srcPixFmt + ")");
             }
             decodedFrame = av_frame_alloc();
             rgbFrame = av_frame_alloc();
             packet = av_packet_alloc();
             if (decodedFrame == null || rgbFrame == null || packet == null) {
                 throw new VideoOpenException("av_frame_alloc / av_packet_alloc returned null");
+            }
+            if (hwDeviceCtx != null) {
+                hwTransferFrame = av_frame_alloc();
+                if (hwTransferFrame == null) {
+                    throw new VideoOpenException("av_frame_alloc (hw transfer) returned null");
+                }
             }
             int byteCount = av_image_get_buffer_size(AV_PIX_FMT_BGRA, w, h, 1);
             BytePointer rawBuf = new BytePointer(av_malloc(byteCount));
@@ -327,9 +426,9 @@ public final class VideoPlayer implements AutoCloseable {
                 }
             }
 
-            return new VideoPlayer(source, formatCtx, videoIdx, videoCodecCtx, swsCtx,
-                    decodedFrame, rgbFrame, packet, rgbBuffer, timeBase, audio,
-                    interrupted, interruptCallback);
+            return new VideoPlayer(source, formatCtx, videoIdx, videoCodecCtx,
+                    decodedFrame, rgbFrame, hwTransferFrame, packet, rgbBuffer, timeBase, audio,
+                    interrupted, interruptCallback, hwDeviceCtx, hwPixFmt);
 
         } catch (Throwable t) {
             // Reverse-order cleanup of partial allocations — anything that
@@ -340,9 +439,10 @@ public final class VideoPlayer implements AutoCloseable {
             }
             if (rgbBuffer != null) av_free(rgbBuffer);
             if (rgbFrame != null) av_frame_free(rgbFrame);
+            if (hwTransferFrame != null) av_frame_free(hwTransferFrame);
             if (decodedFrame != null) av_frame_free(decodedFrame);
             if (packet != null) av_packet_free(packet);
-            if (swsCtx != null) sws_freeContext(swsCtx);
+            if (hwDeviceCtx != null) av_buffer_unref(hwDeviceCtx);
             if (videoCodecCtx != null) avcodec_free_context(videoCodecCtx);
             if (formatCtx != null) {
                 // close_input both closes the opened input AND frees the
@@ -370,6 +470,10 @@ public final class VideoPlayer implements AutoCloseable {
     public boolean isRunning() { return running.get(); }
     public long frameVersion() { return frameVersion.get(); }
     public boolean hasAudio() { return audio != null; }
+    /** @return {@code true} when the codec is decoding on a GPU /
+     *  hardware accelerator (CUDA, D3D11VA, etc.); {@code false} in
+     *  pure-software mode. */
+    public boolean hasHardwareDecode() { return hwDeviceCtx != null; }
 
     /**
      * Render-thread tick. Currently used to drive the audio pump (push
@@ -705,12 +809,11 @@ public final class VideoPlayer implements AutoCloseable {
                         // changes, and we don't bump that until target or
                         // the give-up path below — so intermediate writes
                         // never flash on screen.
-                        sws_scale(swsCtx,
-                                decodedFrame.data(), decodedFrame.linesize(), 0, height,
-                                rgbFrame.data(), rgbFrame.linesize());
+                        boolean ok = scaleFrame();
+                        av_frame_unref(decodedFrame);
+                        if (!ok) continue;
                         latestPtsNanos = ptsNanos;
                         haveCandidate = true;
-                        av_frame_unref(decodedFrame);
                         if (ptsNanos >= targetNanos) {
                             publishCurrentFrame(ptsNanos);
                             return;
@@ -742,19 +845,62 @@ public final class VideoPlayer implements AutoCloseable {
         }
     }
 
+    /**
+     * Scale {@link #decodedFrame} into {@link #rgbFrame}. When running in
+     * hw mode and the decoder emitted a hw frame (format matches
+     * {@link #hwPixFmt}), copy from GPU to {@link #hwTransferFrame} first
+     * and scale from there. The sws context is created / recreated lazily
+     * so its source pix_fmt always matches whichever buffer we're feeding.
+     *
+     * @return {@code true} on success. On any failure (hw transfer error,
+     *     sws context creation refused) the caller should treat the frame
+     *     as undecoded — no scratch buffer write happened.
+     */
+    private boolean scaleFrame() {
+        AVFrame src = decodedFrame;
+        if (hwDeviceCtx != null && hwTransferFrame != null && decodedFrame.format() == hwPixFmt) {
+            int rc = av_hwframe_transfer_data(hwTransferFrame, decodedFrame, 0);
+            if (rc < 0) return false;
+            src = hwTransferFrame;
+        }
+        int srcFmt = src.format();
+        if (srcFmt == AV_PIX_FMT_NONE) return false;
+        if (swsCtx == null || swsSrcPixFmt != srcFmt) {
+            if (swsCtx != null) {
+                sws_freeContext(swsCtx);
+                swsCtx = null;
+            }
+            swsCtx = sws_getContext(
+                    width, height, srcFmt,
+                    width, height, AV_PIX_FMT_BGRA,
+                    SWS_BILINEAR, null, null, (DoublePointer) null);
+            swsSrcPixFmt = srcFmt;
+            if (swsCtx == null) return false;
+        }
+        sws_scale(swsCtx,
+                src.data(), src.linesize(), 0, height,
+                rgbFrame.data(), rgbFrame.linesize());
+        if (src == hwTransferFrame) {
+            av_frame_unref(hwTransferFrame);
+        }
+        return true;
+    }
+
     private void drainDecoder() throws InterruptedException {
         while (running.get()) {
             int recv = avcodec_receive_frame(videoCodecCtx, decodedFrame);
             if (recv == AVERROR_EAGAIN() || recv == AVERROR_EOF()) return;
             if (recv < 0) return;
 
-            sws_scale(swsCtx, decodedFrame.data(), decodedFrame.linesize(), 0, height,
-                    rgbFrame.data(), rgbFrame.linesize());
-
+            boolean scaled = scaleFrame();
             long pts = decodedFrame.best_effort_timestamp();
             long frameTargetNanos = (pts == AV_NOPTS_VALUE)
                     ? 0L
                     : (long) (pts * timeBase * 1_000_000_000.0);
+            if (!scaled) {
+                av_frame_unref(decodedFrame);
+                continue;
+            }
 
             // Wait until the master clock catches up to this frame. If the
             // user pauses mid-wait we exit the loop and just publish; the
@@ -844,10 +990,15 @@ public final class VideoPlayer implements AutoCloseable {
         if (audio != null)         { audio.close(); audio = null; }
         if (packet != null)        { av_packet_free(packet); packet = null; }
         if (decodedFrame != null)  { av_frame_free(decodedFrame); decodedFrame = null; }
+        if (hwTransferFrame != null) { av_frame_free(hwTransferFrame); hwTransferFrame = null; }
         if (rgbFrame != null)      { av_frame_free(rgbFrame); rgbFrame = null; }
         if (rgbBuffer != null)     { av_free(rgbBuffer); rgbBuffer = null; }
         if (swsCtx != null)        { sws_freeContext(swsCtx); swsCtx = null; }
+        // videoCodecCtx still holds an av_buffer_ref'd handle to hwDeviceCtx;
+        // freeing the codec context auto-unrefs it. We free our own handle
+        // separately afterwards.
         if (videoCodecCtx != null) { avcodec_free_context(videoCodecCtx); videoCodecCtx = null; }
+        if (hwDeviceCtx != null)   { av_buffer_unref(hwDeviceCtx); hwDeviceCtx = null; }
         if (formatCtx != null)     { avformat_close_input(formatCtx); formatCtx = null; }
     }
 

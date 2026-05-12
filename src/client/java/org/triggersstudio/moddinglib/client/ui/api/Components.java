@@ -885,6 +885,21 @@ public class Components {
      */
     public static UIComponent Video(String url, Style style, boolean loop,
                                     Consumer<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> onReady) {
+        return Video(url, style, loop, false, onReady);
+    }
+
+    /**
+     * Same as {@link #Video(String, Style, boolean,
+     *   java.util.function.Consumer)} with an extra opt-in for hardware
+     * decoding. When {@code hardware} is {@code true} the player probes
+     * the codec's supported {@code AV_HWDEVICE_TYPE_*} configurations
+     * (CUDA / D3D11VA / DXVA2 / QSV / VideoToolbox / VAAPI) and binds the
+     * first one that succeeds. Failure to find or initialize a hw context
+     * falls back silently to software decode — you never get an error
+     * from "no hw available".
+     */
+    public static UIComponent Video(String url, Style style, boolean loop, boolean hardware,
+                                    Consumer<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> onReady) {
         org.triggersstudio.moddinglib.client.ui.state.State<
                 org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus> status =
                 org.triggersstudio.moddinglib.client.ui.state.State.of(
@@ -895,7 +910,7 @@ public class Components {
             org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player = null;
             Throwable err = null;
             try {
-                player = org.triggersstudio.moddinglib.client.ui.video.VideoPlayer.open(url);
+                player = org.triggersstudio.moddinglib.client.ui.video.VideoPlayer.open(url, hardware);
             } catch (Throwable t) {
                 err = t;
             }
