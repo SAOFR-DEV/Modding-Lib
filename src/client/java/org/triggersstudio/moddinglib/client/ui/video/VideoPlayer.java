@@ -218,13 +218,10 @@ public final class VideoPlayer implements AutoCloseable {
     }
 
     private static String ffmpegError(int code) {
-        BytePointer buf = new BytePointer(256);
-        try {
+        try (BytePointer buf = new BytePointer(256)) {
             av_strerror(code, buf, 256);
             String msg = buf.getString();
             return (msg != null && !msg.isEmpty() ? msg : "(no message)") + " [code=" + code + "]";
-        } finally {
-            buf.close();
         }
     }
 
@@ -327,8 +324,7 @@ public final class VideoPlayer implements AutoCloseable {
 
             int ret = avformat_open_input(formatCtx, source, null, openOpts);
             if (ret < 0) {
-                // FFmpeg already freed formatCtx on open failure — null our
-                // ref so the catch block doesn't try to free it again.
+                // FFmpeg already freed formatCtx on open failure — null our ref so the catch block doesn't try to free it again.
                 formatCtx = null;
                 throw new VideoOpenException("avformat_open_input failed for " + source + ": " + ffmpegError(ret));
             }
@@ -361,22 +357,16 @@ public final class VideoPlayer implements AutoCloseable {
                 throw new VideoOpenException("avcodec_parameters_to_context failed: " + ffmpegError(ret));
             }
 
-            // Optional hardware-decode setup. Done BEFORE avcodec_open2 so
-            // the codec sees the hw_device_ctx and can request hw frames.
-            // Probe failure is silent: we fall through to sw open.
             if (hardware) {
                 HardwareProbe probe = probeHardwareDecode(codec);
                 if (probe != null) {
-                    PointerPointer<AVBufferRef> devicePtr = new PointerPointer<>(1);
-                    try {
+                    try (PointerPointer<AVBufferRef> devicePtr = new PointerPointer<>(1)) {
                         int rc = av_hwdevice_ctx_create(devicePtr, probe.deviceType, null, null, 0);
                         if (rc >= 0) {
                             hwDeviceCtx = new AVBufferRef(devicePtr.get(0));
                             videoCodecCtx.hw_device_ctx(av_buffer_ref(hwDeviceCtx));
                             hwPixFmt = probe.hwPixFmt;
                         }
-                    } finally {
-                        devicePtr.close();
                     }
                 }
             }
@@ -414,14 +404,13 @@ public final class VideoPlayer implements AutoCloseable {
                     rgbBuffer, AV_PIX_FMT_BGRA, w, h, 1);
             double timeBase = av_q2d(videoStream.time_base());
 
-            // Optional audio stream — failure to open audio is non-fatal; the
-            // video keeps playing silently. We pick the best audio stream that
-            // shares a program with the chosen video, matching FFmpeg defaults.
+            /* Optional audio stream — failure to open audio is non-fatal; the video keeps playing silently.
+            We pick the best audio stream that shares a program with the chosen video, matching FFmpeg defaults. */
             int audioIdx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_AUDIO, -1, videoIdx, (AVCodec) null, 0);
             if (audioIdx >= 0) {
                 try {
                     audio = AudioStream.open(formatCtx.streams(audioIdx), audioIdx);
-                } catch (Throwable t) {
+                } catch (Exception t) {
                     // Swallow — better to play silent video than crash the open.
                     audio = null;
                 }
@@ -431,12 +420,13 @@ public final class VideoPlayer implements AutoCloseable {
                     decodedFrame, rgbFrame, hwTransferFrame, packet, rgbBuffer, timeBase, audio,
                     interrupted, interruptCallback, hwDeviceCtx, hwPixFmt);
 
-        } catch (Throwable t) {
-            // Reverse-order cleanup of partial allocations — anything that
-            // constructed successfully gets freed; anything that didn't is
-            // still null and the guard skips it.
+        } catch (Exception t) {
+            /* Reverse-order cleanup of partial allocations — anything that constructed successfully gets freed; anything that didn't is
+            still null and the guard skips it. */
             if (audio != null) {
-                try { audio.close(); } catch (Throwable ignored) {}
+                try {
+                    audio.close();
+                } catch (Exception ignored) {}
             }
             if (rgbBuffer != null) av_free(rgbBuffer);
             if (rgbFrame != null) av_frame_free(rgbFrame);
@@ -446,9 +436,8 @@ public final class VideoPlayer implements AutoCloseable {
             if (hwDeviceCtx != null) av_buffer_unref(hwDeviceCtx);
             if (videoCodecCtx != null) avcodec_free_context(videoCodecCtx);
             if (formatCtx != null) {
-                // close_input both closes the opened input AND frees the
-                // context; free_context only frees the allocated struct.
-                // Pick based on whether we got past avformat_open_input.
+                /* close_input both closes the opened input AND frees the context; free_context only frees the allocated struct.
+                Pick based on whether we got past avformat_open_input. */
                 if (fmtOpened) {
                     avformat_close_input(formatCtx);
                 } else {
@@ -456,21 +445,44 @@ public final class VideoPlayer implements AutoCloseable {
                 }
             }
             if (t instanceof RuntimeException re) throw re;
-            if (t instanceof Error e) throw e;
             throw new VideoOpenException("VideoPlayer.open(" + source + ") failed: " + t.getMessage());
         } finally {
             if (openOpts != null) av_dict_free(openOpts);
         }
     }
 
-    public String getSource() { return source; }
-    public int getWidth() { return width; }
-    public int getHeight() { return height; }
-    public boolean isPaused() { return paused; }
-    public boolean isEnded() { return ended.get(); }
-    public boolean isRunning() { return running.get(); }
-    public long frameVersion() { return frameVersion.get(); }
-    public boolean hasAudio() { return audio != null; }
+    public String getSource() {
+        return source;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
+    public boolean isEnded() {
+        return ended.get();
+    }
+
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    public long frameVersion() {
+        return frameVersion.get();
+    }
+
+    public boolean hasAudio() {
+        return audio != null;
+    }
+
     /** @return {@code true} when the codec is decoding on a GPU /
      *  hardware accelerator (CUDA, D3D11VA, etc.); {@code false} in
      *  pure-software mode. */
@@ -558,13 +570,12 @@ public final class VideoPlayer implements AutoCloseable {
      */
     public void setPlaybackRate(double rate) {
         if (Double.isNaN(rate)) return;
-        double clamped = Math.max(0.25, Math.min(4.0, rate));
+        double clamped = Math.clamp(rate, 0.25, 4.0);
         this.playbackRate = clamped;
         if (audio != null) {
             audio.setPitch((float) clamped);
         }
-        // Re-anchor wall-clock at the current source-time so the rate
-        // change doesn't visually jump the clock forward or backward.
+        // Re-anchor wall-clock at the current source-time so the rate change doesn't visually jump the clock forward or backward.
         long nowSourceNanos = currentClockNanos();
         long wallEquiv = (long) (nowSourceNanos / clamped);
         startNanos = System.nanoTime() - wallEquiv;
@@ -678,9 +689,8 @@ public final class VideoPlayer implements AutoCloseable {
             long v = frameVersion.get();
             if (v == 0 || v == lastVersion) return v;
             long bytes = (long) width * height * 4;
-            // LWJGL's memCopy is a direct native-to-native memcpy by address;
-            // bytedeco's BytePointer.address() returns the underlying long
-            // pointer of our scaling buffer.
+            /* LWJGL's memCopy is a direct native-to-native memcpy by address;
+            bytedeco's BytePointer.address() returns the underlying long pointer of our scaling buffer. */
             MemoryUtil.memCopy(rgbBuffer.address(), destAddr, bytes);
             return v;
         }
@@ -699,8 +709,7 @@ public final class VideoPlayer implements AutoCloseable {
                 }
                 int rd = av_read_frame(formatCtx, packet);
                 if (rd < 0) {
-                    // Drain decoders so the last frames render, then either
-                    // loop-rewind or signal EOF.
+                    // Drain decoders so the last frames render, then either loop-rewind or signal EOF.
                     avcodec_send_packet(videoCodecCtx, (AVPacket) null);
                     drainDecoder();
                     if (loop) {
@@ -721,7 +730,7 @@ public final class VideoPlayer implements AutoCloseable {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (Throwable t) {
+        } catch (Exception t) {
             ended.set(true);
         } finally {
             running.set(false);
@@ -743,30 +752,23 @@ public final class VideoPlayer implements AutoCloseable {
             audio.flushCodec();
             audio.requestReset(targetNanosForAudio);
         }
-        // Anchor the wall-clock to the seek target rather than zero. Without
-        // this, drainDecoder's pacing loop saw clockNanos = 0 against a
-        // frameTargetNanos far in the future and slept the full seek
-        // distance — i.e. seeking to +10s on a silent source froze the
-        // image for 10s of wall time. For audio-bearing sources it also
-        // covers the gap until the AL clock starts producing samples.
-        // The wall→source-time mapping respects playbackRate so seeking at
-        // 2x lands the clock at the right wall-time anchor.
+        /* Anchor the wall-clock to the seek target rather than zero. Without this, drainDecoder's pacing loop saw clockNanos = 0 against a
+        frameTargetNanos far in the future and slept the full seek distance — i.e. seeking to +10s on a silent source froze the
+        image for 10s of wall time. For audio-bearing sources it also covers the gap until the AL clock starts producing samples.
+        The wall→source-time mapping respects playbackRate so seeking at 2x lands the clock at the right wall-time anchor. */
         long targetNanos = targetMicros * 1_000L;
         long wallEquiv = playbackRate == 1.0 ? targetNanos : (long) (targetNanos / playbackRate);
         startNanos = System.nanoTime() - wallEquiv;
         pauseAccumNanos = 0L;
         pausedAtNanos = paused ? System.nanoTime() : -1L;
-        // Seed the position with the seek target so currentTimeSeconds()
-        // reads correctly even before the next frame actually publishes
-        // (without this, a fast user retap of "+5s" would compute against
-        // a stale audio clock or a freshly-zeroed wall clock).
+
+        /* Seed the position with the seek target so currentTimeSeconds() reads correctly even before the next frame actually publishes
+        (without this, a fast user retap of "+5s" would compute against a stale audio clock or a freshly-zeroed wall clock). */
         lastPublishedPtsNanos = targetNanos;
 
-        // If we land here while paused, the main decode loop is going to
-        // skip every read (paused branch) so the on-screen frame stays at
-        // the pre-seek position. Decode + publish a frame inline so the
-        // user sees the new spot. Done synchronously on the same decoder
-        // thread, so no threading concerns.
+        /* If we land here while paused, the main decode loop is going to skip every read (paused branch) so the on-screen frame stays at
+        the pre-seek position. Decode + publish a frame inline so the user sees the new spot. Done synchronously on the same decoder
+        thread, so no threading concerns. */
         if (paused) {
             decodeUntilTargetFrame(targetNanos);
         }
@@ -801,16 +803,15 @@ public final class VideoPlayer implements AutoCloseable {
                     int sent = avcodec_send_packet(videoCodecCtx, packet);
                     av_packet_unref(packet);
                     if (sent < 0) continue;
-                    int recv;
-                    while ((recv = avcodec_receive_frame(videoCodecCtx, decodedFrame)) == 0) {
+                    while ((avcodec_receive_frame(videoCodecCtx, decodedFrame)) == 0) {
                         long pts = decodedFrame.best_effort_timestamp();
                         long ptsNanos = (pts == AV_NOPTS_VALUE) ? 0L
                                 : (long) (pts * timeBase * 1_000_000_000.0);
-                        // Overwrite the scratch buffer with every decode.
-                        // Render thread only observes it via frameVersion
-                        // changes, and we don't bump that until target or
-                        // the give-up path below — so intermediate writes
-                        // never flash on screen.
+                        /* Overwrite the scratch buffer with every decode.
+                        Render thread only observes it via frameVersion
+                        changes, and we don't bump that until target or
+                        the give-up path below — so intermediate writes
+                        never flash on screen. */
                         boolean ok = scaleFrame();
                         av_frame_unref(decodedFrame);
                         if (!ok) continue;
@@ -828,15 +829,14 @@ public final class VideoPlayer implements AutoCloseable {
                     av_packet_unref(packet);
                 }
             }
-            // Ran out of packets / hit the iteration cap without reaching
-            // target — publish whatever we last decoded so the user at
-            // least sees something close to where they asked.
+            /* Ran out of packets / hit the iteration cap without reaching
+            target — publish whatever we last decoded so the user at
+            least sees something close to where they asked. */
             if (haveCandidate) {
                 publishCurrentFrame(latestPtsNanos);
             }
-        } catch (Throwable ignored) {
-            // Best-effort refresh; if anything goes wrong, leave the old
-            // frame on screen. The next play() will recover.
+        } catch (Exception ignored) {
+            // Best-effort refresh; if anything goes wrong, leave the old frame on screen. The next play() will recover.
         }
     }
 
@@ -899,12 +899,12 @@ public final class VideoPlayer implements AutoCloseable {
                     ? 0L
                     : (long) (pts * timeBase * 1_000_000_000.0);
 
-            // Pre-drop before sws_scale to avoid burning CPU scaling
-            // frames we know we'll throw away. Especially important right
-            // after a seek-while-playing: av_seek_frame(BACKWARD) drops
-            // us on the keyframe before the target, so up to ~GOP-many
-            // pre-target frames stream out and we'd otherwise scale every
-            // one of them just to discard them in the post-wait drop.
+            /* Pre-drop before sws_scale to avoid burning CPU scaling
+            frames we know we'll throw away. Especially important right
+            after a seek-while-playing: av_seek_frame(BACKWARD) drops
+            us on the keyframe before the target, so up to ~GOP-many
+            pre-target frames stream out and we'd otherwise scale every
+            one of them just to discard them in the post-wait drop. */
             if (!paused && frameTargetNanos != 0) {
                 long clockNow = currentClockNanos();
                 if (clockNow - frameTargetNanos > 100_000_000L) {
@@ -919,20 +919,20 @@ public final class VideoPlayer implements AutoCloseable {
                 continue;
             }
 
-            // Wait until the master clock catches up to this frame. If the
-            // user pauses mid-wait we exit the loop and just publish; the
-            // outer loop will then handle the pause on the next iteration.
+            /* Wait until the master clock catches up to this frame. If the
+            user pauses mid-wait we exit the loop and just publish; the
+            outer loop will then handle the pause on the next iteration. */
             while (running.get() && !paused) {
                 long clockNanos = currentClockNanos();
                 long deltaNanos = frameTargetNanos - clockNanos;
                 if (deltaNanos <= 0) break;
-                long sleepMs = Math.max(1, Math.min(20L, deltaNanos / 1_000_000L));
+                long sleepMs = Math.clamp(deltaNanos / 1_000_000L, 1, 20L);
                 Thread.sleep(sleepMs);
             }
 
-            // Drop frames >100ms behind to catch up — but only when we're
-            // actually playing. If paused (race during wait above), keep
-            // the frame so the screen refreshes.
+            /* Drop frames >100ms behind to catch up — but only when we're
+            actually playing. If paused (race during wait above), keep
+            the frame so the screen refreshes. */
             if (!paused) {
                 long clockAfter = currentClockNanos();
                 if (frameTargetNanos != 0 && clockAfter - frameTargetNanos > 100_000_000L) {
@@ -980,30 +980,31 @@ public final class VideoPlayer implements AutoCloseable {
     @Override
     public synchronized void close() {
         if (!closed.compareAndSet(false, true)) return;
-        // Flip the interrupt flag FIRST. The decoder thread may be parked
-        // inside av_read_frame() on a slow / dead network read; the
-        // FFmpeg interrupt callback (wired in open()) will return 1 on
-        // its next poll and that call returns AVERROR_EXIT instead of
-        // sitting on an OS timeout. Without this, the join below could
-        // race the native call: Java would free formatCtx while the C
-        // side was still reading from it → segfault.
+        /* Flip the interrupt flag FIRST. The decoder thread may be parked
+        inside av_read_frame() on a slow / dead network read; the
+        FFmpeg interrupt callback (wired in open()) will return 1 on
+        its next poll and that call returns AVERROR_EXIT instead of
+        sitting on an OS timeout. Without this, the join below could
+        race the native call: Java would free formatCtx while the C
+        side was still reading from it → segfault. */
         interrupted.set(true);
         running.set(false);
         if (decoderThread != null) {
             decoderThread.interrupt();
             try {
-                // 5s is a backstop, not the expected wait — with the
-                // interrupt callback the thread typically exits within
-                // tens of milliseconds. If it ever blows the timeout
-                // we'd rather log + leak than hard-abort the JVM.
+                /* 5s is a backstop, not the expected wait — with the
+                interrupt callback the thread typically exits within
+                tens of milliseconds. If it ever blows the timeout
+                we'd rather log + leak than hard-abort the JVM. */
                 decoderThread.join(5000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
             decoderThread = null;
         }
-        // Audio first — its codec context lives off the format context, but
-        // it has its own AL state independent of the format demuxer.
+
+        /* Audio first — its codec context lives off the format context, but
+        it has its own AL state independent of the format demuxer. */
         if (audio != null)         { audio.close(); audio = null; }
         if (packet != null)        { av_packet_free(packet); packet = null; }
         if (decodedFrame != null)  { av_frame_free(decodedFrame); decodedFrame = null; }
@@ -1011,9 +1012,6 @@ public final class VideoPlayer implements AutoCloseable {
         if (rgbFrame != null)      { av_frame_free(rgbFrame); rgbFrame = null; }
         if (rgbBuffer != null)     { av_free(rgbBuffer); rgbBuffer = null; }
         if (swsCtx != null)        { sws_freeContext(swsCtx); swsCtx = null; }
-        // videoCodecCtx still holds an av_buffer_ref'd handle to hwDeviceCtx;
-        // freeing the codec context auto-unrefs it. We free our own handle
-        // separately afterwards.
         if (videoCodecCtx != null) { avcodec_free_context(videoCodecCtx); videoCodecCtx = null; }
         if (hwDeviceCtx != null)   { av_buffer_unref(hwDeviceCtx); hwDeviceCtx = null; }
         if (formatCtx != null)     { avformat_close_input(formatCtx); formatCtx = null; }
