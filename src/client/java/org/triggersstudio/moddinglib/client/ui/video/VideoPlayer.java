@@ -17,6 +17,7 @@ import org.bytedeco.javacpp.DoublePointer;
 import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.lwjgl.system.MemoryUtil;
+import org.triggersstudio.moddinglib.client.ui.components.VideoComponent;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -737,9 +738,10 @@ public final class VideoPlayer implements AutoCloseable {
         int rc = av_seek_frame(formatCtx, -1, targetMicros, AVSEEK_FLAG_BACKWARD);
         if (rc < 0) return;
         avcodec_flush_buffers(videoCodecCtx);
+        long targetNanosForAudio = targetMicros * 1_000L;
         if (audio != null) {
             audio.flushCodec();
-            audio.requestReset();
+            audio.requestReset(targetNanosForAudio);
         }
         // Anchor the wall-clock to the seek target rather than zero. Without
         // this, drainDecoder's pacing loop saw clockNanos = 0 against a

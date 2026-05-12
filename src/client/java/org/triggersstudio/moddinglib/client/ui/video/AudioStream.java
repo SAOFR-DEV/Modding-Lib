@@ -108,6 +108,13 @@ public final class AudioStream implements AutoCloseable {
     /** Tracks PTS for chunks whose AVFrame had AV_NOPTS_VALUE. */
     private long pendingNextStartPtsNanos = 0L;
 
+    /** Source-timeline nanos below which incoming decoded audio chunks
+     *  should be discarded (not queued to AL). Set by
+     *  {@link #requestReset(long)} so post-seek audio doesn't play the
+     *  pre-target slice that {@code av_seek_frame(BACKWARD)} backs up
+     *  to. {@code 0} means "no skip", honour everything. */
+    private volatile long skipBelowNanos = 0L;
+
     /** Set by the decoder thread on seek/loop; consumed on next {@link #pump()}. */
     private volatile boolean resetRequested = false;
 
@@ -222,14 +229,30 @@ public final class AudioStream implements AutoCloseable {
 
             if (convertedSamples > 0) {
                 long durationNanos = (long) convertedSamples * 1_000_000_000L / OUT_SAMPLE_RATE;
-                int bytes = convertedSamples * OUT_CHANNELS * BYTES_PER_SAMPLE;
-                if (pendingChunks.size() < MAX_PENDING_CHUNKS) {
-                    byte[] copy = new byte[bytes];
-                    convertOutBuffer.position(0);
-                    convertOutBuffer.get(copy);
-                    pendingChunks.offerLast(new PendingChunk(copy, startPtsNanos, durationNanos));
+                long endPtsNanos = startPtsNanos + durationNanos;
+                // Skip chunks that are entirely before the post-seek target —
+                // they're the keyframe-before-target tail that av_seek_frame
+                // gives us, and queuing them would (a) play audio from a few
+                // seconds before the seek and (b) anchor the audio clock to
+                // that pre-target time, dragging currentTimeSeconds() back
+                // and making the seek look like a "rollback".
+                boolean below = skipBelowNanos > 0L && endPtsNanos < skipBelowNanos;
+                // Once we've crossed the target, clear the threshold so we
+                // don't keep doing the >=N comparison on every chunk for the
+                // rest of playback.
+                if (!below && skipBelowNanos > 0L) {
+                    skipBelowNanos = 0L;
                 }
-                pendingNextStartPtsNanos = startPtsNanos + durationNanos;
+                if (!below) {
+                    int bytes = convertedSamples * OUT_CHANNELS * BYTES_PER_SAMPLE;
+                    if (pendingChunks.size() < MAX_PENDING_CHUNKS) {
+                        byte[] copy = new byte[bytes];
+                        convertOutBuffer.position(0);
+                        convertOutBuffer.get(copy);
+                        pendingChunks.offerLast(new PendingChunk(copy, startPtsNanos, durationNanos));
+                    }
+                }
+                pendingNextStartPtsNanos = endPtsNanos;
             }
             av_frame_unref(frame);
         }
@@ -345,14 +368,28 @@ public final class AudioStream implements AutoCloseable {
      * pre-seek time. That window was responsible for seek-while-playing
      * appearing to do nothing: drainDecoder was pacing against the stale
      * audio clock and dropping the entire post-seek GOP as "behind".
+     *
+     * <p>The {@code newTargetNanos} parameter is the seek target in source
+     * nanos. Any incoming decoded chunk whose end PTS is below that gets
+     * silently dropped — that's what stops the AL clock from reporting
+     * the pre-target time after {@code av_seek_frame(BACKWARD)} hands us
+     * audio packets from the keyframe before target.
      */
-    public void requestReset() {
+    public void requestReset(long newTargetNanos) {
         pendingChunks.clear();
         pendingNextStartPtsNanos = 0L;
         clockStarted = false;
         lastClockNanos = 0L;
         lastClockSampleAtNanos = System.nanoTime();
+        skipBelowNanos = Math.max(0L, newTargetNanos);
         resetRequested = true;
+    }
+
+    /** @deprecated use {@link #requestReset(long)} with the seek target so
+     *  pre-target audio doesn't sneak through. */
+    @Deprecated
+    public void requestReset() {
+        requestReset(0L);
     }
 
     /** Flush the audio decoder's internal buffer (post-seek). */
