@@ -4,7 +4,7 @@
 Modding Lib is a modding library for Minecraft designed to facilitate the development of mods using Fabric.
 
 ## Information
-- **Version** : alpha-1.0.10
+- **Version** : alpha-1.1.0
 - **Minecraft** : 1.21.4
 - **Loader** : Fabric 0.17.2
 - **Java** : 21
@@ -25,7 +25,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation 'org.triggersstudio:moddinglib:alpha-1.0.6'
+    modImplementation 'org.triggersstudio:moddinglib:alpha-1.1.0'
 }
 ```
 
