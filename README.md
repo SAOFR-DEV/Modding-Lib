@@ -62,42 +62,10 @@ cd ModdingLib
 
 The compiled JAR files will be available in the `build/libs/` directory.
 
-## Next Steps
+## Roadmap
 
-**UI Components**
-- [x] Add animation support for UIs
-  > - [x] Spring family (default/snappy/bouncy/strong) — needs physics simulation
-  > - [ ] Irregular family (light/heavy) — clarify spec
-  > - [x] Loop / yoyo / onComplete callbacks
-  > - [x] ColorTween (interpolate ARGB)
-- [ ] Add video components for UIs
-  > - [x] Phase 1 — VideoPlayer (FFmpeg via JavaCPP) + VideoComponent, video stream only, no audio yet
-  > - [ ] Phase 2 — audio decode via OpenAL with A/V sync clock
-  > - [ ] Phase 3 — seek / loop / hardware decode probe / direct sws_scale into NativeImage
-- [x] Add progress bars for UIs
-- [x] Add sliders for UIs
-  >  - [x] Slider vertical (ajout d'un flag d'orientation).
-  >  - [x] Support clavier (← → Home End) — nécessite un système de focus.
-  >  - [x] Hover visuel sur le thumb.
-  >  - [x] Coins arrondis sur bar/thumb/track — à faire quand Style gagnera un vrai cornerRadius.
-- [ ] Add player render for UIs
-- [x] Add text input for UIs
-  > - [x] Add text area for UIs multi-lign, filter/max length, Tab cycle focus
-  > - [x] Add onSubmit Enter
-  > - [x] Add blink du caret
-- [x] Add combo box for UIs
-- [x] Add select list for UIs
-- [x] Add color picker for UIs
-- [x] Add toast notifications for UIs
-- [x] Add tooltips for UIs
-- [x] Add pagination for UIs
-- [x] Add accordion for UIs
-- [x] Add Skeleton support for UIs
-- [x] Add spiner for UIs
-- [x] Add calendar for UIs
-
-**Other**
-- [ ] Add channel communication to plugins
+See [FEATURES.md](FEATURES.md) for the full living list — shipped components,
+work on side branches, selected priorities, and ideas under discussion.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE.md](LICENSE.md) file for details.

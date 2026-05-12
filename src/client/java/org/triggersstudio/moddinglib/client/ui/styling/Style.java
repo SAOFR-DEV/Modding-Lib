@@ -1,5 +1,6 @@
 package org.triggersstudio.moddinglib.client.ui.styling;
 
+import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.events.ClickHandler;
 
 /**
@@ -24,6 +25,9 @@ public class Style {
     private final boolean bold;
     private final int placeholderColor;
     private final ObjectFit objectFit;
+    private final Identifier font;
+    private final Paint backgroundPaint;
+    private final Paint textPaint;
 
     private Style(Builder builder) {
         this.width = builder.width;
@@ -43,6 +47,9 @@ public class Style {
         this.bold = builder.bold;
         this.placeholderColor = builder.placeholderColor;
         this.objectFit = builder.objectFit;
+        this.font = builder.font;
+        this.backgroundPaint = builder.backgroundPaint;
+        this.textPaint = builder.textPaint;
     }
 
     // Getters
@@ -124,6 +131,34 @@ public class Style {
     public ObjectFit getObjectFit() {
         return objectFit;
     }
+  
+    /*
+     * @return the resource-pack font identifier to render text with, or
+     * {@code null} when text should use the vanilla font. Resolved by
+     * Minecraft via {@code assets/<namespace>/font/<path>.json}.
+     */
+    public Identifier getFont() {
+        return font;
+    }
+
+    /**
+     * @return the {@link Paint} to fill the component's background with.
+     * Always non-null — falls back to {@link Paint#solid(int)} of
+     * {@link #getBackgroundColor()} when only the legacy {@code backgroundColor(int)}
+     * was set.
+     */
+    public Paint getBackgroundPaint() {
+        return backgroundPaint != null ? backgroundPaint : Paint.solid(backgroundColor);
+    }
+
+    /**
+     * @return the {@link Paint} to fill text glyphs with. Always non-null —
+     * falls back to {@link Paint#solid(int)} of {@link #getTextColor()}
+     * when only the legacy {@code textColor(int)} was set.
+     */
+    public Paint getTextPaint() {
+        return textPaint != null ? textPaint : Paint.solid(textColor);
+    }
 
     // Builder pattern
     public static Builder builder() {
@@ -149,6 +184,9 @@ public class Style {
         builder.bold = this.bold;
         builder.placeholderColor = this.placeholderColor;
         builder.objectFit = this.objectFit;
+        builder.font = this.font;
+        builder.backgroundPaint = this.backgroundPaint;
+        builder.textPaint = this.textPaint;
         return builder;
     }
 
@@ -228,6 +266,18 @@ public class Style {
     public static Builder objectFit(ObjectFit fit) {
         return builder().objectFit(fit);
     }
+  
+    public static Builder font(Identifier font) {
+        return builder().font(font);
+    }
+
+    public static Builder background(Paint paint) {
+        return builder().background(paint);
+    }
+
+    public static Builder textFill(Paint paint) {
+        return builder().textFill(paint);
+    }
 
     // Builder class
     public static class Builder {
@@ -248,6 +298,9 @@ public class Style {
         private boolean bold = false;
         private int placeholderColor = 0; // 0 ⇒ derive from textColor
         private ObjectFit objectFit = null; // null ⇒ consumer-defined default
+        private Identifier font = null;   // null ⇒ vanilla font
+        private Paint backgroundPaint = null; // null ⇒ derive from backgroundColor
+        private Paint textPaint = null;       // null ⇒ derive from textColor
 
         public Builder width(int width) {
             this.width = width;
@@ -291,11 +344,40 @@ public class Style {
 
         public Builder backgroundColor(int color) {
             this.backgroundColor = color;
+            this.backgroundPaint = null;
             return this;
         }
 
         public Builder textColor(int color) {
             this.textColor = color;
+            this.textPaint = null;
+            return this;
+        }
+
+        /**
+         * Set a {@link Paint} (solid or gradient) to fill the component's
+         * background with. Resets any previously-set {@code backgroundColor(int)}.
+         * The legacy int field is kept in sync with the paint's
+         * representative color so {@code getBackgroundColor()} stays
+         * meaningful for code paths that haven't been migrated yet.
+         */
+        public Builder background(Paint paint) {
+            this.backgroundPaint = paint;
+            if (paint != null) {
+                this.backgroundColor = paint.representativeColor();
+            }
+            return this;
+        }
+
+        /**
+         * Set a {@link Paint} (solid or gradient) to fill text glyphs with.
+         * Mirrors {@link #background(Paint)} for the text channel.
+         */
+        public Builder textFill(Paint paint) {
+            this.textPaint = paint;
+            if (paint != null) {
+                this.textColor = paint.representativeColor();
+            }
             return this;
         }
 
@@ -349,6 +431,17 @@ public class Style {
          */
         public Builder objectFit(ObjectFit fit) {
             this.objectFit = fit;
+        }
+      
+        /*
+         * Render text with a Minecraft resource-pack font instead of the
+         * vanilla one. The {@link Identifier} must resolve to a font JSON
+         * (e.g. {@code modid:my_font} → {@code assets/modid/font/my_font.json}).
+         * The user is responsible for shipping the font definition and the
+         * underlying TTF / bitmap in their own resource pack.
+         */
+        public Builder font(Identifier font) {
+            this.font = font;
             return this;
         }
 

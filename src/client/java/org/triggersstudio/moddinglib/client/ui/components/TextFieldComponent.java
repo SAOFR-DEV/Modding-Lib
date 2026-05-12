@@ -1,6 +1,7 @@
 package org.triggersstudio.moddinglib.client.ui.components;
 
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
 import org.triggersstudio.moddinglib.client.ui.rendering.Shapes;
 import org.triggersstudio.moddinglib.client.ui.state.State;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
@@ -118,7 +119,8 @@ public class TextFieldComponent extends UIComponent {
     public void render(DrawContext drawContext) {
         int radius = style.getBorderRadius();
         if (style.getBackgroundColor() != 0) {
-            Shapes.fillRoundRect(drawContext, x, y, width, height, radius, style.getBackgroundColor());
+            PaintRenderer.fillRect(drawContext, x, y, width, height,
+                    style.getBackgroundPaint(), radius);
         }
         if (style.getBorderWidth() > 0) {
             Shapes.drawRoundRectBorder(drawContext, x, y, width, height,

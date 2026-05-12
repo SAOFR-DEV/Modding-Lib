@@ -43,6 +43,18 @@ public class UICommands {
                             openNextTick(ExampleScreens::createVideoScreen);
                             return 1;
                         })
+                        .then(literal("playerrender").executes(ctx -> {
+                            openNextTick(ExampleScreens::createPlayerRenderScreen);
+                            return 1;
+                        }))
+                        .then(literal("chart").executes(ctx -> {
+                            openNextTick(ExampleScreens::createChartScreen);
+                            return 1;
+                        }))
+                        .then(literal("gradient").executes(ctx -> {
+                            openNextTick(ExampleScreens::createGradientScreen);
+                            return 1;
+                        }))
         );
     }
 }

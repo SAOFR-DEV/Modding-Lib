@@ -1,5 +1,6 @@
 package org.triggersstudio.moddinglib.client.ui.styling;
 
+import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.events.ClickHandler;
 
 /**
@@ -115,6 +116,18 @@ public class Styles {
 
     public static Style.Builder objectFit(ObjectFit fit) {
         return Style.objectFit(fit);
+    }
+  
+    public static Style.Builder font(Identifier font) {
+        return Style.font(font);
+    }
+
+    public static Style.Builder background(Paint paint) {
+        return Style.background(paint);
+    }
+
+    public static Style.Builder textFill(Paint paint) {
+        return Style.textFill(paint);
     }
 }
 

@@ -1,9 +1,14 @@
 package org.triggersstudio.moddinglib.client.ui.api;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Identifier;
 import org.triggersstudio.moddinglib.client.ui.animation.Direction;
 import org.triggersstudio.moddinglib.client.ui.animation.Easing;
 import org.triggersstudio.moddinglib.client.ui.animation.Tween;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartOptions;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartSeries;
+import org.triggersstudio.moddinglib.client.ui.chart.PieSlice;
 import org.triggersstudio.moddinglib.client.ui.components.*;
 import org.triggersstudio.moddinglib.client.ui.layout.LayoutType;
 import org.triggersstudio.moddinglib.client.ui.state.State;
@@ -112,7 +117,110 @@ public class Components {
     public static UIComponent Image(Identifier texture, int textureWidth, int textureHeight, Style style) {
         return new ImageComponent(texture, textureWidth, textureHeight, style);
     }
-    
+
+    // ===== Player / Entity render =====
+    //
+    // Renders any LivingEntity (player, mob, ...) into the component bounds
+    // using the same scissored 3D path as the vanilla inventory paperdoll.
+    // By default the entity follows the cursor (atan-smoothed); pass
+    // mouseTracksRotation=false to lock the view to the front so the
+    // entity's own bodyYaw/headYaw/pitch fields drive the pose.
+
+    public static UIComponent PlayerRender(LivingEntity entity) {
+        return PlayerRender(() -> entity, Style.DEFAULT);
+    }
+
+    public static UIComponent PlayerRender(LivingEntity entity, Style style) {
+        return PlayerRender(() -> entity, style);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier) {
+        return PlayerRender(entitySupplier, Style.DEFAULT);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier, Style style) {
+        return new PlayerRenderComponent(entitySupplier, style);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier, Style style,
+                                           int entitySize, boolean mouseTracksRotation) {
+        return new PlayerRenderComponent(entitySupplier, style, entitySize, mouseTracksRotation, 0f);
+    }
+
+    public static UIComponent PlayerRender(Supplier<LivingEntity> entitySupplier, Style style,
+                                           int entitySize, boolean mouseTracksRotation, float bottomOffset) {
+        return new PlayerRenderComponent(entitySupplier, style, entitySize, mouseTracksRotation, bottomOffset);
+    }
+
+    /**
+     * Convenience for the local client player. Renders nothing while in the
+     * main menu / before world join (supplier returns {@code null} until the
+     * player exists).
+     */
+    public static UIComponent LocalPlayer() {
+        return LocalPlayer(Style.DEFAULT);
+    }
+
+    public static UIComponent LocalPlayer(Style style) {
+        return new PlayerRenderComponent(() -> MinecraftClient.getInstance().player, style);
+    }
+
+    // ===== Charts =====
+    //
+    // LineChart / BarChart take a list of ChartSeries (label + color +
+    // Supplier<List<Double>>). PieChart takes a list of PieSlice. All
+    // three accept a ChartOptions for axis labels, legend toggle, value
+    // formatter, etc. Default options give a dark-themed chart that fits
+    // a 0xFF_1A_1A_1A background. Hover shows a tooltip with the value.
+
+    public static UIComponent LineChart(List<ChartSeries> series) {
+        return new LineChartComponent(series, ChartOptions.DEFAULT, Style.DEFAULT);
+    }
+
+    public static UIComponent LineChart(List<ChartSeries> series, ChartOptions options) {
+        return new LineChartComponent(series, options, Style.DEFAULT);
+    }
+
+    public static UIComponent LineChart(List<ChartSeries> series, ChartOptions options, Style style) {
+        return new LineChartComponent(series, options, style);
+    }
+
+    public static UIComponent LineChart(List<ChartSeries> series, Style style) {
+        return new LineChartComponent(series, ChartOptions.DEFAULT, style);
+    }
+
+    public static UIComponent BarChart(List<ChartSeries> series) {
+        return new BarChartComponent(series, ChartOptions.DEFAULT, Style.DEFAULT);
+    }
+
+    public static UIComponent BarChart(List<ChartSeries> series, ChartOptions options) {
+        return new BarChartComponent(series, options, Style.DEFAULT);
+    }
+
+    public static UIComponent BarChart(List<ChartSeries> series, ChartOptions options, Style style) {
+        return new BarChartComponent(series, options, style);
+    }
+
+    public static UIComponent BarChart(List<ChartSeries> series, Style style) {
+        return new BarChartComponent(series, ChartOptions.DEFAULT, style);
+    }
+
+    public static UIComponent PieChart(List<PieSlice> slices) {
+        return new PieChartComponent(slices, ChartOptions.DEFAULT, Style.DEFAULT);
+    }
+
+    public static UIComponent PieChart(List<PieSlice> slices, ChartOptions options) {
+        return new PieChartComponent(slices, options, Style.DEFAULT);
+    }
+
+    public static UIComponent PieChart(List<PieSlice> slices, ChartOptions options, Style style) {
+        return new PieChartComponent(slices, options, style);
+    }
+
+    public static UIComponent PieChart(List<PieSlice> slices, Style style) {
+        return new PieChartComponent(slices, ChartOptions.DEFAULT, style);
+    }
+
     // ===== Container Components =====
     
     /**

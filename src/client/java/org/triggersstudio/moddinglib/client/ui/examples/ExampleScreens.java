@@ -1,10 +1,18 @@
 package org.triggersstudio.moddinglib.client.ui.examples;
 
 import org.triggersstudio.moddinglib.client.ui.api.Components;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartOptions;
+import org.triggersstudio.moddinglib.client.ui.chart.ChartSeries;
+import org.triggersstudio.moddinglib.client.ui.chart.PieSlice;
 import org.triggersstudio.moddinglib.client.ui.components.UIComponent;
 import org.triggersstudio.moddinglib.client.ui.screen.UIScreen;
 import org.triggersstudio.moddinglib.client.ui.state.State;
+import org.triggersstudio.moddinglib.client.ui.styling.Paint;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import static org.triggersstudio.moddinglib.client.ui.styling.Styles.*;
 
@@ -1302,5 +1310,232 @@ public class ExampleScreens {
         );
 
         return Components.Screen(content, "Toast Demo");
+    }
+
+    /**
+     * PlayerRender demo: shows the local player paperdoll-style. The body
+     * follows the cursor (atan-smoothed). The static box on the right has
+     * mouse-tracking disabled — the player there is shown facing the camera.
+     */
+    public static UIScreen createPlayerRenderScreen() {
+        UIComponent content = Components.Column(
+                padding(20).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "PlayerRender Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+
+                Components.Text(
+                        "Left: follows cursor.   Right: locked front view.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(8, 0, 12, 0).build()
+                ),
+
+                Components.Row(scope -> {
+                    scope.LocalPlayer(
+                            border(0xFF_55_AA_FF, 1).backgroundColor(0xFF_22_22_22)
+                                    .width(180).height(220)
+                                    .margin(0, 12, 0, 0)
+                                    .padding(8)
+                                    .build()
+                    );
+                    scope.PlayerRender(
+                            () -> net.minecraft.client.MinecraftClient.getInstance().player,
+                            border(0xFF_AA_55_55, 1).backgroundColor(0xFF_22_22_22)
+                                    .width(180).height(220)
+                                    .padding(8)
+                                    .build(),
+                            0,        // auto size
+                            false,    // no mouse tracking
+                            0f
+                    );
+                }),
+
+                Components.Text(
+                        "Tip: must be in-world. The supplier returns null in the main menu and the box stays empty.",
+                        fontSize(9).textColor(0xFF_55_55_55).margin(12, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "PlayerRender Demo");
+    }
+
+    /**
+     * Chart demo: line / bar / pie side by side, all sharing the same
+     * mutable data. The "Randomize" button shifts every value, and every
+     * chart re-reads through its supplier so the change is immediate.
+     */
+    public static UIScreen createChartScreen() {
+        // Mutable backing lists — the suppliers below close over them, so
+        // we mutate in place and the next render frame picks the new
+        // values up automatically.
+        List<Double> lineA = new ArrayList<>(List.of(2.0, 4.0, 3.0, 6.0, 5.0, 8.0, 7.0, 9.0, 8.0, 11.0));
+        List<Double> lineB = new ArrayList<>(List.of(5.0, 4.0, 6.0, 4.0, 7.0, 6.0, 8.0, 7.0, 9.0, 9.0));
+        List<Double> barA = new ArrayList<>(List.of(12.0, 19.0, 7.0, 15.0, 10.0));
+        List<Double> barB = new ArrayList<>(List.of(8.0, 14.0, 11.0, 9.0, 17.0));
+        double[] pie = new double[]{30, 22, 18, 10};
+        Random rng = new Random();
+        Runnable randomize = () -> {
+            for (int i = 0; i < lineA.size(); i++) lineA.set(i, 2 + rng.nextDouble() * 10);
+            for (int i = 0; i < lineB.size(); i++) lineB.set(i, 2 + rng.nextDouble() * 10);
+            for (int i = 0; i < barA.size(); i++) barA.set(i, 5 + rng.nextDouble() * 20);
+            for (int i = 0; i < barB.size(); i++) barB.set(i, 5 + rng.nextDouble() * 20);
+            for (int i = 0; i < pie.length; i++) pie[i] = 5 + rng.nextDouble() * 30;
+        };
+
+        ChartOptions lineOpts = ChartOptions.builder()
+                .xLabels(List.of("M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"))
+                .build();
+        ChartOptions barOpts = ChartOptions.builder()
+                .xLabels(List.of("Q1", "Q2", "Q3", "Q4", "Q5"))
+                .build();
+        ChartOptions pieOpts = ChartOptions.builder()
+                .valueFormatter(v -> String.format("%.0f", v))
+                .build();
+
+        UIComponent content = Components.Column(
+                padding(16).backgroundColor(0xFF_1A_1A_1A).build(),
+
+                Components.Text(
+                        "Chart Demo",
+                        fontSize(20).textColor(WHITE).bold().build()
+                ),
+                Components.Text(
+                        "Hover any chart for value tooltips. Click Randomize to refresh — suppliers re-read every frame.",
+                        fontSize(9).textColor(0xFF_77_77_77).margin(6, 0, 8, 0).build()
+                ),
+
+                Components.Button(
+                        "Randomize",
+                        backgroundColor(0xFF_55_AA_FF).textColor(WHITE)
+                                .height(22).width(120).margin(0, 0, 12, 0)
+                                .onClick((mx, my, btn) -> randomize.run())
+                                .build()
+                ),
+
+                Components.Row(scope -> {
+                    scope.LineChart(
+                            List.of(
+                                    ChartSeries.of("XP", 0xFF_55_AA_FF, () -> lineA),
+                                    ChartSeries.of("Mana", 0xFF_FF_AA_55, () -> lineB)
+                            ),
+                            lineOpts,
+                            backgroundColor(0xFF_22_22_22)
+                                    .width(280).height(180).padding(6).margin(0, 8, 0, 0)
+                                    .build()
+                    );
+                    scope.BarChart(
+                            List.of(
+                                    ChartSeries.of("Wood", 0xFF_55_DD_88, () -> barA),
+                                    ChartSeries.of("Stone", 0xFF_FF_55_55, () -> barB)
+                            ),
+                            barOpts,
+                            backgroundColor(0xFF_22_22_22)
+                                    .width(280).height(180).padding(6)
+                                    .build()
+                    );
+                }),
+
+                Components.PieChart(
+                        List.of(
+                                PieSlice.of("Iron", 0xFF_55_AA_FF, () -> pie[0]),
+                                PieSlice.of("Gold", 0xFF_FF_DD_55, () -> pie[1]),
+                                PieSlice.of("Diamond", 0xFF_55_DD_DD, () -> pie[2]),
+                                PieSlice.of("Netherite", 0xFF_FF_55_AA, () -> pie[3])
+                        ),
+                        pieOpts,
+                        backgroundColor(0xFF_22_22_22)
+                                .width(380).height(180).padding(8).margin(12, 0, 0, 0)
+                                .build()
+                )
+        );
+
+        return Components.Screen(content, "Chart Demo");
+    }
+
+    /**
+     * Showcases the {@link Paint} API: linear (multi-stop), radial, and conic
+     * gradient backgrounds, plus a gradient text title sampled per glyph.
+     * Same {@code Style.background(Paint)} / {@code textFill(Paint)} entry
+     * points cover every gradient shape.
+     */
+    public static UIScreen createGradientScreen() {
+        Paint multistop = Paint.linear(45,
+                Paint.stop(0.00, 0xFF_FF_00_00),
+                Paint.stop(0.10, 0xFF_FF_AA_00),
+                Paint.stop(0.40, 0xFF_FF_FF_00),
+                Paint.stop(0.70, 0xFF_00_FF_55),
+                Paint.stop(0.85, 0xFF_00_AA_FF),
+                Paint.stop(1.00, 0xFF_AA_00_FF));
+
+        Paint radial = Paint.radial(0.5, 0.5, 0.7, 0.7,
+                Paint.stop(0.0, 0xFF_FF_FF_FF),
+                Paint.stop(0.4, 0xFF_55_AA_FF),
+                Paint.stop(1.0, 0xFF_11_22_44));
+
+        Paint conic = Paint.conic(0,
+                Paint.stop(0.00, 0xFF_FF_55_55),
+                Paint.stop(0.25, 0xFF_FF_DD_55),
+                Paint.stop(0.50, 0xFF_55_FF_88),
+                Paint.stop(0.75, 0xFF_55_AA_FF),
+                Paint.stop(1.00, 0xFF_FF_55_55));
+
+        Paint titleGradient = Paint.linear(0,
+                Paint.stop(0.0, 0xFF_FF_55_55),
+                Paint.stop(0.5, 0xFF_FF_DD_55),
+                Paint.stop(1.0, 0xFF_55_AA_FF));
+
+        UIComponent content = Components.Column(
+                padding(16).backgroundColor(0xFF_15_15_15).build(),
+
+                Components.Text(
+                        "Gradient Paints",
+                        textFill(titleGradient).fontSize(24).bold().build()
+                ),
+                Components.Text(
+                        "Linear (multi-stop), radial, and conic — same Style.background(Paint) for all three. The title above is the same Paint API piped into textFill(...).",
+                        fontSize(10).textColor(0xFF_88_88_88).margin(4, 0, 12, 0).build()
+                ),
+
+                // Three gradient swatches, side by side. Each "swatch" is an
+                // empty Column whose background paint does all the visual work.
+                Components.Row(scope -> {
+                    scope.Column(scope2 -> {
+                        scope2.Text("Linear, multi-stop, 45°",
+                                fontSize(10).textColor(WHITE).margin(0, 0, 6, 0).build());
+                        scope2.Column(
+                                background(multistop).width(220).height(120).borderRadius(8).build(),
+                                inner -> {});
+                    });
+
+                    scope.Column(margin(0, 12).build(), scope2 -> {
+                        scope2.Text("Radial, soft spotlight",
+                                fontSize(10).textColor(WHITE).margin(0, 0, 6, 0).build());
+                        scope2.Column(
+                                background(radial).width(220).height(120).borderRadius(8).build(),
+                                inner -> {});
+                    });
+
+                    scope.Column(scope2 -> {
+                        scope2.Text("Conic, sweeping CW from 0°",
+                                fontSize(10).textColor(WHITE).margin(0, 0, 6, 0).build());
+                        scope2.Column(
+                                background(conic).width(220).height(120).borderRadius(8).build(),
+                                inner -> {});
+                    });
+                }),
+
+                // Demonstrate gradient + bold + (optional) custom font.
+                Components.Text(
+                        "Gradient text + bold (per-glyph sampling, vanilla bold preserved)",
+                        textFill(multistop).fontSize(14).bold().margin(20, 0, 0, 0).build()
+                ),
+                Components.Text(
+                        "Every codepoint is drawn separately with its own sampled color — bold just routes through the standard §l mechanism on each glyph.",
+                        fontSize(10).textColor(0xFF_77_77_77).margin(4, 0, 0, 0).build()
+                )
+        );
+
+        return Components.Screen(content, "Gradient Demo");
     }
 }

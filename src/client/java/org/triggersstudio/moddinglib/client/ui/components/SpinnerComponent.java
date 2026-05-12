@@ -2,6 +2,7 @@ package org.triggersstudio.moddinglib.client.ui.components;
 
 import net.minecraft.client.gui.DrawContext;
 import org.triggersstudio.moddinglib.client.ui.context.UIContext;
+import org.triggersstudio.moddinglib.client.ui.rendering.PaintRenderer;
 import org.triggersstudio.moddinglib.client.ui.styling.Size;
 import org.triggersstudio.moddinglib.client.ui.styling.Style;
 
@@ -78,7 +79,8 @@ public class SpinnerComponent extends UIComponent {
     @Override
     public void render(DrawContext drawContext) {
         if (style.getBackgroundColor() != 0x00_00_00_00) {
-            drawContext.fill(x, y, x + width, y + height, style.getBackgroundColor());
+            PaintRenderer.fillRect(drawContext, x, y, width, height,
+                    style.getBackgroundPaint(), style.getBorderRadius());
         }
 
         if (startNanos < 0) startNanos = System.nanoTime();
