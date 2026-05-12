@@ -105,6 +105,11 @@ public final class VideoPlayer implements AutoCloseable {
 
     /** When true, decoder rewinds to start on EOF instead of ending. */
     private volatile boolean loop = false;
+    /** Source-time advance multiplier. {@code 1.0} = normal speed,
+     *  {@code 2.0} = twice as fast, {@code 0.5} = half speed. Audio pitch
+     *  follows (chipmunk mode — no formant correction). Clamped at the
+     *  setter to {@code [0.25, 4.0]}. */
+    private volatile double playbackRate = 1.0;
     /** Seek command from any thread → consumed by decoder thread.
      *  {@code -1} = no pending seek; otherwise the target in microseconds.
      *  Atomic so a rapid sequence of {@code seek()} calls always reaches the
@@ -433,6 +438,39 @@ public final class VideoPlayer implements AutoCloseable {
     }
 
     /**
+     * Set the playback speed. {@code 1.0} = normal, {@code 2.0} = double
+     * speed, {@code 0.5} = half. Clamped to {@code [0.25, 4.0]}.
+     *
+     * <p>Audio plays via OpenAL's {@code AL_PITCH} — there is no pitch
+     * correction, so the audio sounds higher / lower at the extremes
+     * (chipmunk effect at 2x). For pitch-preserving speed change a
+     * dedicated time-stretch library (e.g. SoundTouch) would be needed —
+     * outside this player's scope.
+     *
+     * <p>Video pacing scales the wall-clock fallback accordingly so frames
+     * advance at the same rate as the source-time clock. When audio is
+     * present, the audio clock naturally tracks rate'd consumption.
+     */
+    public void setPlaybackRate(double rate) {
+        if (Double.isNaN(rate)) return;
+        double clamped = Math.max(0.25, Math.min(4.0, rate));
+        this.playbackRate = clamped;
+        if (audio != null) {
+            audio.setPitch((float) clamped);
+        }
+        // Re-anchor wall-clock at the current source-time so the rate
+        // change doesn't visually jump the clock forward or backward.
+        long nowSourceNanos = currentClockNanos();
+        long wallEquiv = (long) (nowSourceNanos / clamped);
+        startNanos = System.nanoTime() - wallEquiv;
+        pauseAccumNanos = 0L;
+    }
+
+    public double getPlaybackRate() {
+        return playbackRate;
+    }
+
+    /**
      * Seek to {@code seconds} in the source timeline. Thread-safe — the
      * decoder thread performs the actual {@code av_seek_frame} on its next
      * read iteration, then flushes both codec contexts and (if present)
@@ -605,8 +643,11 @@ public final class VideoPlayer implements AutoCloseable {
         // distance — i.e. seeking to +10s on a silent source froze the
         // image for 10s of wall time. For audio-bearing sources it also
         // covers the gap until the AL clock starts producing samples.
+        // The wall→source-time mapping respects playbackRate so seeking at
+        // 2x lands the clock at the right wall-time anchor.
         long targetNanos = targetMicros * 1_000L;
-        startNanos = System.nanoTime() - targetNanos;
+        long wallEquiv = playbackRate == 1.0 ? targetNanos : (long) (targetNanos / playbackRate);
+        startNanos = System.nanoTime() - wallEquiv;
         pauseAccumNanos = 0L;
         pausedAtNanos = paused ? System.nanoTime() : -1L;
         // Seed the position with the seek target so currentTimeSeconds()
@@ -751,13 +792,22 @@ public final class VideoPlayer implements AutoCloseable {
      * to a wall-clock derived from {@link #startNanos} otherwise (handles
      * audio-less sources, audio init failure, and the brief startup window
      * before the first AL buffer plays).
+     *
+     * <p>When {@link #playbackRate} != 1, the wall-clock fallback multiplies
+     * elapsed wall time by the rate so source-time advances faster (>1) or
+     * slower (<1) per real-time second. The audio path needs no
+     * compensation: {@code AL_SAMPLE_OFFSET} reflects source samples
+     * consumed, and AL pitch'd playback consumes faster in real time so
+     * the offset already tracks rate'd source time.
      */
     private long currentClockNanos() {
         if (audio != null && audio.isClockStarted()) {
             return audio.audioClockNanos();
         }
         if (startNanos < 0) startNanos = System.nanoTime();
-        return Math.max(0, System.nanoTime() - startNanos - pauseAccumNanos);
+        long wallElapsed = Math.max(0, System.nanoTime() - startNanos - pauseAccumNanos);
+        if (playbackRate == 1.0) return wallElapsed;
+        return (long) (wallElapsed * playbackRate);
     }
 
     /**

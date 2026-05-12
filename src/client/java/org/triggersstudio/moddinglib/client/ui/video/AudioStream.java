@@ -112,6 +112,7 @@ public final class AudioStream implements AutoCloseable {
     private volatile boolean resetRequested = false;
 
     private float volume = 1.0f;
+    private float pitch = 1.0f;
     private boolean muted = false;
     private final AtomicBoolean paused = new AtomicBoolean(false);
     private volatile boolean closed = false;
@@ -327,6 +328,7 @@ public final class AudioStream implements AutoCloseable {
         AL10.alGenBuffers(alBuffers);
         for (int b : alBuffers) freeAlBuffers.addLast(b);
         AL10.alSourcef(alSource, AL10.AL_GAIN, muted ? 0f : volume);
+        AL10.alSourcef(alSource, AL10.AL_PITCH, pitch);
         AL10.alSourcei(alSource, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE); // 2D, ignore listener position
         alInitialized = true;
     }
@@ -385,6 +387,24 @@ public final class AudioStream implements AutoCloseable {
 
     public boolean muted() {
         return muted;
+    }
+
+    /**
+     * AL playback pitch — directly maps to {@code AL_PITCH} on the source.
+     * Values above 1.0 speed up playback (raising audio pitch); below 1.0
+     * slow it down (lowering pitch). Used by {@code VideoPlayer.setPlaybackRate}.
+     * Without a pitch-correction step this is the "chipmunk" mode; that's
+     * acceptable for casual scrubbing in [0.5, 2.0].
+     */
+    public void setPitch(float p) {
+        this.pitch = Math.max(0.0625f, p);
+        if (alInitialized && !alFailed) {
+            AL10.alSourcef(alSource, AL10.AL_PITCH, pitch);
+        }
+    }
+
+    public float pitch() {
+        return pitch;
     }
 
     private void applyVolume() {

@@ -991,6 +991,34 @@ public class Components {
         return new VideoComponent(player, style, ownsPlayer);
     }
 
+    // ===== Video scrub bar =====
+    //
+    // Click + drag bar bound to a VideoPlayer. Reads currentTimeSeconds /
+    // durationSeconds for the fill. On release, calls player.seek(target).
+    // Tolerates a null player (async-load grace period) and live streams
+    // (no duration -> no seeking).
+
+    /**
+     * Click-and-drag scrub bar wired to a player handle. The supplier is
+     * polled every frame so the bar resolves a still-loading player as
+     * soon as it arrives (see the {@code playerRef::set} pattern used by
+     * {@link #Video(String, Style, boolean,
+     *   java.util.function.Consumer)}).
+     */
+    public static UIComponent VideoScrubBar(
+            java.util.function.Supplier<org.triggersstudio.moddinglib.client.ui.video.VideoPlayer> playerSupplier,
+            Style style) {
+        return new org.triggersstudio.moddinglib.client.ui.components.VideoScrubBarComponent(
+                playerSupplier, style);
+    }
+
+    public static UIComponent VideoScrubBar(
+            org.triggersstudio.moddinglib.client.ui.video.VideoPlayer player,
+            Style style) {
+        return new org.triggersstudio.moddinglib.client.ui.components.VideoScrubBarComponent(
+                () -> player, style);
+    }
+
     // ===== Tooltip =====
     //
     // Wraps any child. After the cursor hovers the child for delayMs (default
