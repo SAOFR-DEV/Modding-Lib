@@ -431,6 +431,7 @@ public class Style {
          */
         public Builder objectFit(ObjectFit fit) {
             this.objectFit = fit;
+            return this;
         }
       
         /*
