@@ -189,8 +189,7 @@ package org.triggersstudio.moddinglib.client.ui;
  * ├── layout/              → Layout system
  * ├── rendering/           → Rendering engine
  * ├── screen/              → Minecraft Screen integration
- * ├── styling/             → Style and color system
- * └── examples/            → Example screens
+ * └── styling/             → Style and color system
  * ```
  *
  * ## Future Roadmap
