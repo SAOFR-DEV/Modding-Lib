@@ -368,7 +368,7 @@ public final class VideoPlayer implements AutoCloseable {
                 if (probe != null) {
                     PointerPointer<AVBufferRef> devicePtr = new PointerPointer<>(1);
                     try {
-                        int rc = av_hwdevice_ctx_create(devicePtr, probe.deviceType, (String) null, null, 0);
+                        int rc = av_hwdevice_ctx_create(devicePtr, probe.deviceType, (BytePointer) null, null, 0);
                         if (rc >= 0) {
                             hwDeviceCtx = new AVBufferRef(devicePtr.get(0));
                             videoCodecCtx.hw_device_ctx(av_buffer_ref(hwDeviceCtx));
