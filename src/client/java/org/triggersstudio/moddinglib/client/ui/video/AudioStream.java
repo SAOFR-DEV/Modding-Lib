@@ -337,10 +337,21 @@ public final class AudioStream implements AutoCloseable {
      * Called from the decoder thread after a seek/loop. Drops every PCM
      * chunk still pending and asks the next {@link #pump()} to drain AL
      * + reset the clock. Audio will resume as fresh chunks arrive.
+     *
+     * <p>We also clear {@link #clockStarted} and {@link #lastClockNanos}
+     * synchronously here (not just in {@link #pump()}) so the decoder
+     * thread never observes a window where {@code isClockStarted()} still
+     * reports {@code true} and {@code audioClockNanos()} returns the
+     * pre-seek time. That window was responsible for seek-while-playing
+     * appearing to do nothing: drainDecoder was pacing against the stale
+     * audio clock and dropping the entire post-seek GOP as "behind".
      */
     public void requestReset() {
         pendingChunks.clear();
         pendingNextStartPtsNanos = 0L;
+        clockStarted = false;
+        lastClockNanos = 0L;
+        lastClockSampleAtNanos = System.nanoTime();
         resetRequested = true;
     }
 

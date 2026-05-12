@@ -368,7 +368,7 @@ public final class VideoPlayer implements AutoCloseable {
                 if (probe != null) {
                     PointerPointer<AVBufferRef> devicePtr = new PointerPointer<>(1);
                     try {
-                        int rc = av_hwdevice_ctx_create(devicePtr, probe.deviceType, (BytePointer) null, null, 0);
+                        int rc = av_hwdevice_ctx_create(devicePtr, probe.deviceType, null, null, 0);
                         if (rc >= 0) {
                             hwDeviceCtx = new AVBufferRef(devicePtr.get(0));
                             videoCodecCtx.hw_device_ctx(av_buffer_ref(hwDeviceCtx));
@@ -892,11 +892,26 @@ public final class VideoPlayer implements AutoCloseable {
             if (recv == AVERROR_EAGAIN() || recv == AVERROR_EOF()) return;
             if (recv < 0) return;
 
-            boolean scaled = scaleFrame();
             long pts = decodedFrame.best_effort_timestamp();
             long frameTargetNanos = (pts == AV_NOPTS_VALUE)
                     ? 0L
                     : (long) (pts * timeBase * 1_000_000_000.0);
+
+            // Pre-drop before sws_scale to avoid burning CPU scaling
+            // frames we know we'll throw away. Especially important right
+            // after a seek-while-playing: av_seek_frame(BACKWARD) drops
+            // us on the keyframe before the target, so up to ~GOP-many
+            // pre-target frames stream out and we'd otherwise scale every
+            // one of them just to discard them in the post-wait drop.
+            if (!paused && frameTargetNanos != 0) {
+                long clockNow = currentClockNanos();
+                if (clockNow - frameTargetNanos > 100_000_000L) {
+                    av_frame_unref(decodedFrame);
+                    continue;
+                }
+            }
+
+            boolean scaled = scaleFrame();
             if (!scaled) {
                 av_frame_unref(decodedFrame);
                 continue;
