@@ -2,10 +2,17 @@ plugins {
     id 'fabric-loom' version '1.11-SNAPSHOT'
     id 'maven-publish'
     // Picks the native classifier matching the build host (windows-x86_64,
-    // linux-x86_64, macosx-aarch_64, ...). Used for FFmpeg natives below
-    // so dev builds only pull the developer's OS instead of every OS.
+    // linux-x86_64, macosx-aarch_64, ...). Used for FFmpeg natives in dev
+    // mode below — published artifacts always pin all four desktop targets.
     id 'com.google.osdetector' version '1.7.3'
 }
+
+// Toggle multi-platform FFmpeg natives:
+//   ./gradlew publish -PpublishMode=true
+// CI sets this so the published jar's resolved deps cover Windows + Linux +
+// macOS (intel + arm). Local dev builds omit it and pull only the host
+// classifier — faster Gradle resolution, smaller cache footprint.
+def publishMode = findProperty("publishMode") == "true"
 
 version = project.mod_version
 group = project.maven_group
@@ -53,22 +60,23 @@ dependencies {
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Phase 1 video — JavaCPP FFmpeg bindings.
-    //
-    // We declare the wrapper jars + the *current host's* native classifier
-    // (~30-50MB) instead of the -platform meta artifact (~150MB packaging
-    // every OS). For a multi-platform published mod jar, list every target
-    // classifier explicitly here OR swap back to ffmpeg-platform — the
-    // tradeoff is dev iteration speed vs. distribution coverage.
-    //
     // Wrapper licenses: bytedeco/javacpp + bytedeco/ffmpeg = Apache 2.0.
     // Native FFmpeg binaries: LGPLv2.1+ as built by JavaCPP presets.
     def ffmpegVersion = '7.1.1-1.5.12'
     def javacppVersion = '1.5.12'
     implementation "org.bytedeco:javacpp:${javacppVersion}"
-    implementation "org.bytedeco:javacpp:${javacppVersion}:${osdetector.classifier}"
     implementation "org.bytedeco:ffmpeg:${ffmpegVersion}"
-    implementation "org.bytedeco:ffmpeg:${ffmpegVersion}:${osdetector.classifier}"
+
+    // Native binaries. publishMode pins every desktop classifier so the
+    // published module's resolved deps cover all OSes a Minecraft player
+    // might be on; dev mode only pulls the host (saves ~150MB cached).
+    def desktopClassifiers = publishMode
+            ? ["windows-x86_64", "linux-x86_64", "macosx-x86_64", "macosx-arm64"]
+            : [osdetector.classifier]
+    desktopClassifiers.each { classifier ->
+        implementation "org.bytedeco:javacpp:${javacppVersion}:${classifier}"
+        implementation "org.bytedeco:ffmpeg:${ffmpegVersion}:${classifier}"
+    }
 }
 
 processResources {
@@ -124,9 +132,17 @@ publishing {
 
     // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
+        // GitHub Packages. Auth resolves env vars first (CI hands us
+        // GITHUB_ACTOR / GITHUB_TOKEN automatically) and falls back to
+        // gpr.user / gpr.key in ~/.gradle/gradle.properties for local
+        // publishes.
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/SAOFR-DEV/Modding-Lib")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user")
+                password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key")
+            }
+        }
     }
 }
