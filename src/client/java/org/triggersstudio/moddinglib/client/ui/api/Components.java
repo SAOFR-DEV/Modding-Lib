@@ -1054,8 +1054,7 @@ public class Components {
             org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus s, Style style) {
         switch (s.state) {
             case LOADING:
-                return new SkeletonComponent(
-                        Style.width(style.getWidth()).height(style.getHeight()).build());
+                return new SkeletonComponent(style.getWidth(),style.getHeight());
             case ERROR:
                 return Column(
                         Style.backgroundColor(0xFF_22_22_22)
