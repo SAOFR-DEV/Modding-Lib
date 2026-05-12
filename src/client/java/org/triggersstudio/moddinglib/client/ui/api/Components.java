@@ -1052,16 +1052,16 @@ public class Components {
 
     private static UIComponent renderVideoStatus(
             org.triggersstudio.moddinglib.client.ui.video.VideoLoadStatus s, Style style) {
-        int w = positiveOr(style.getWidth(), 320);
-        int h = positiveOr(style.getHeight(), 180);
         switch (s.state) {
             case LOADING:
-                return Skeleton(w, h);
+                return new SkeletonComponent(
+                        Style.width(style.getWidth()).height(style.getHeight()).build());
             case ERROR:
                 return Column(
                         Style.backgroundColor(0xFF_22_22_22)
                                 .border(0xFF_88_2A_2A, 1).borderRadius(2)
-                                .padding(8).width(w).height(h).build(),
+                                .padding(8)
+                                .width(style.getWidth()).height(style.getHeight()).build(),
                         Text("Video failed:",
                                 Style.textColor(0xFF_FF_55_55).fontSize(11).bold().build()),
                         Text(s.error != null ? s.error : "(unknown)",
